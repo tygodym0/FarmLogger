@@ -64,7 +64,6 @@ local FarmData = {
     input_price = imgui.new.int(0)
 }
 
-
 local imguiJson = {
     flag_nft = false, -- На всякий случай будет в JSON
     totalProfitSA = 0,
@@ -1176,7 +1175,7 @@ function main()
 
     user_nickname = (sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(1))))
 
-    --check_upd()
+    check_upd()
 
     if carbStatus == false and shriftStatus == false then -- Если нет обоих
         load_files(3)
@@ -1194,12 +1193,6 @@ function main()
 
     sampRegisterChatCommand('flog', function()
         renderWindow[0] = not renderWindow[0]
-    end)
-
-    sampRegisterChatCommand('che', function()
-        print(tostring(imguiJson.gold_r_status_parse_price))
-        imguiJson.gold_r_status_parse_price = not imguiJson.gold_r_status_parse_price
-        print(tostring(imguiJson.gold_r_status_parse_price))
     end)
 
     while true do
@@ -1852,6 +1845,7 @@ end
 function imgui.CenterButton(text, sizeY)
     return imgui.Button(u8(text), imgui.ImVec2(imgui.GetWindowWidth() - 30, sizeY))
 end
+
 function imgui.TextColoredRGB(text)
     local style = imgui.GetStyle()
     local colors = style.Colors
@@ -2028,7 +2022,7 @@ function async_http_request:send()
     createEffilThread(self.request.method, self.request.url, self.request.body, self.request.callback)
 end
 
---[[function onScriptTerminate(scr,qgame) -- gg
+function onScriptTerminate(scr,qgame) -- gg
 	if scr == thisScript() then
 
         if FarmLog.days[currentDate] == nil then
@@ -2045,24 +2039,24 @@ end
 
         for i = 1, #item do
 
-            if FarmLog.days[currentDate][item[i][3]] --[[== nil then
-                FarmLog.days[currentDate][item[i][3]] --[[= 0 
+            if FarmLog.days[currentDate][item[i][3]] == nil then
+                FarmLog.days[currentDate][item[i][3]] = 0 
             end
 
-            if FarmLog.weeks[currentWeek][item[i][3]] --[[== nil then
-                FarmLog.weeks[currentWeek][item[i][3]] --= 0
-            --end
+            if FarmLog.weeks[currentWeek][item[i][3]] == nil then
+                FarmLog.weeks[currentWeek][item[i][3]] = 0
+            end
 
-            --if FarmLog.months[currentMonth][item[i][3]] == nil then
-                --FarmLog.months[currentMonth][item[i][3]] = 0
-            --end
-        --end
+            if FarmLog.months[currentMonth][item[i][3]] == nil then
+                FarmLog.months[currentMonth][item[i][3]] = 0
+            end
+        end
 
-        --imguiJson()
-        --FarmLog()
-    --end
-    --FarmErrorMSG('По какой-то причине скрипт прекратил свою работу. Пожалуйста, посмотрите в консоль, в чем заключается ошибка, и отправьте ее арону стиллеру')
---end
+        imguiJson()
+        FarmLog()
+    end
+    FarmErrorMSG('По какой-то причине скрипт прекратил свою работу. Пожалуйста, посмотрите в консоль, в чем заключается ошибка, и отправьте ее арону стиллеру')
+end
 
 function FarmNormMSG(msg)
     sampAddChatMessage('{b9ff00}[Farm {FFD700}log]{8aceff} ' .. tostring(msg), 16777215)
