@@ -1,7 +1,7 @@
 script_properties("work-in-pause")
-script_version('0.0.2 dev')
---[[ 0.0.1 user -> 0.0.2 user - Добавлена полная поддержка для НФТ-Контейнеров
-    0.0.2 user -> 0.0.3 user - Добавлена полная работа автоматических изменений цен с арз-маркета
+script_version('0.0.3')
+--[[ 0.0.1 -> 0.0.2 - Добавлена полная поддержка для НФТ-Контейнеров
+    0.0.2 -> 0.0.3 - Добавлена полная работа автоматических изменений цен с арз-маркета
 ]]
 
 local effil = require("effil")
@@ -68,6 +68,7 @@ local imguiJson = {
     vc = imgui.new.int(118),
     az = imgui.new.int(60000),
     combo_test = imgui.new.int(),
+    useAutoUpdate = imgui.new.bool(true),
     premiumvipy_status = imgui.new.bool(true),
     midas3sloti_status = imgui.new.bool(true),
     leshiy_status = imgui.new.bool(true),
@@ -515,11 +516,9 @@ local renderWindow = imgui.new.bool(false)
 local period = FarmData.selectedPeriod
 local HasBusinessDialogOpened = false
 local cashedCheckboxTexts = {}
-local nop_token = false
 local biz_money = 0
 local getBusinessDialog = false
 local user_nickname = ''
---local ComboTest = imgui.new.int()
 local item_list = {
     u8('Не изменять цены вообще никогда'), u8('Менять цены с помощью маркетплейса каждый день'), u8('Менять цены с помощью маркетплейса каждую неделю'), u8('Менять цены с помощью маркетплейса каждый месяц'),
     u8('Менять цены с помощью премиум-таблицы каждый день'), u8('Менять цены с помощью премиум-таблицы каждую неделю'), u8('Менять цены с помощью премиум-таблицы каждый месяц')
@@ -606,7 +605,6 @@ function sampEvents.onServerMessage(color, message)
         if menu[13][5][0] then -- Статус: Неизвестно ?
             local mirage_az = message:match('^%[Операция Мираж%] {......}Поздравляем! Вы заняли {......}#%d+ место{......}! Заработав: {......}(%d+) AZ Coins{......}.')
             add_loot(menu[13][2], mirage_az) -- Мираж
-            --imguiJson()
         end
     end
 
@@ -614,7 +612,6 @@ function sampEvents.onServerMessage(color, message)
         if menu[3][5][0] then -- Статус: Считает успешно ?
             local zarplata_sa = message:match('Общая заработная плата: %$(%d+[.,]?%d+[.,]?%d+)') -- Общая заработная плата: $2,107,850
             add_loot(menu[3][2], removeSeparator(zarplata_sa)) -- Зарплата
-            --imguiJson()
         end
     end
 
@@ -622,14 +619,12 @@ function sampEvents.onServerMessage(color, message)
         if menu[4][5][0] then -- Статус: Считает успешно ?
             local _, deposit_i2 = message:match('(.*)%$(%d+[.,]?%d+[.,]?%d+)')
             add_loot(menu[4][2], removeSeparator(deposit_i2)) -- Депозит
-            --imguiJson()
         end
     end
 
     if message:find('^{......}%[Реклама Бизнеса%] Объявление: (.-) Отправил: ' .. user_nickname .. '') then --{FCAA4D}[Реклама Бизнеса] Объявление: Работает б/з "Аммуниция" №136. У нас лучшие боеприпасы. Отправил: Aron_Stealer[490]
         if menu[5][5][0] then -- Статус: Считает успешно !
             add_loot(menu[5][2], 1) -- Маркет
-            --imguiJson()
         end
     end
 
@@ -643,7 +638,6 @@ function sampEvents.onServerMessage(color, message)
                 end
             end
         end
-        --imguiJson()
     end
 
     if message:find('^%[Информация%] {......}Вы использовали платиновый сундук с рулетками и получили') and not message:find('%[%d+%]') then -- Подсчет всех рулеток (Бронзовая, серебряная, золотая, платиновая). Сундуки: Платиновый
@@ -656,7 +650,6 @@ function sampEvents.onServerMessage(color, message)
                 end
             end
         end
-        --imguiJson()
     end
 
     if message:find('%[Информация%] {......}Вы использовали тайник Илона Маска и получили') and not message:find('%[%d+%]') then -- Статус: Неизвестно ?
@@ -669,7 +662,6 @@ function sampEvents.onServerMessage(color, message)
                 end
             end
         end
-        --imguiJson()
     end
 
     --if message:find('^Вы открыли Тайник Лос Сантоса!') or message:find('^Вы открыли Тайник Vice City!') and not message:find('%[%d+%]') then
@@ -687,7 +679,6 @@ function sampEvents.onServerMessage(color, message)
                 end
             end
         end
-        --imguiJson()
     end
 
     if message:find('^Вы открыли Тайник Собирателя!') and not message:find('%[%d+%]') then
@@ -700,21 +691,18 @@ function sampEvents.onServerMessage(color, message)
                 end
             end
         end
-        --imguiJson()
     end
 
     if message:find('^%[Операция Мираж%] {......}Вы заработали {......}%d+ монет миража') and not message:find('%[%d+%]') then
         if menu[13][5][0] then
             local moneta_mirage_local = message:match('Вы заработали {FFD700}(%d+) монет миража')
             add_loot(item[39][3], moneta_mirage_local or 0) -- Монета миража
-            --imguiJson()
         end
     end 
 
     if message:find('%[Информация%] {......}Вы использовали запас обрезов.') and not message:find('%[%d+%]') then
         if menu[20][5][0] then
             add_loot(item[42][3], 20) -- Обрез (20 штук)
-            --imguiJson()
         end
     end
 
@@ -724,7 +712,6 @@ function sampEvents.onServerMessage(color, message)
             finka_lv_territory_money = removeSeparator(finka_lv_territory_money)
             print(removeSeparator(finka_lv_territory_money))
             add_loot(menu[23][2], removeSeparator(finka_lv_territory_money))
-            --imguiJson()
         end
     end
 
@@ -732,7 +719,6 @@ function sampEvents.onServerMessage(color, message)
         if menu[25][5][0] then
             local _, space_heart_money = message:match('Вы получили (.-)%$(%d+[.,]?%d+[.,]?%d+)')
             add_loot(menu[25][2], removeSeparator(space_heart_money))
-            --imguiJson()
         end
     end
 
@@ -743,7 +729,6 @@ function sampEvents.onServerMessage(color, message)
                 if item[i][2] == space_heart_larec then
                     add_loot(menu[25][2], item[i][7][0])
                     space_heart_larec = nil
-                    --imguiJson()
                 end
             end
         end
@@ -752,14 +737,12 @@ function sampEvents.onServerMessage(color, message)
     if message:find("Вам был добавлен предмет :item6368:. Откройте инвентарь, используйте клавишу 'Y' или /invent") and not message:find('%[%d+%]') then -- Micro Tec (18 шт)
         if menu[26][5][0] then
             add_loot(menu[26][2], 18)
-            --imguiJson()
         end
     end
 
     if message:find('%[Информация%] {FFFFFF}Вы успешно сняли деньги со счета. Остаток: %$(.*)') and biz_money ~= 0 and not HasBusinessDialogOpened then --[Информация] {FFFFFF}Вы успешно сняли деньги со счета. Остаток: $16,790,789
         add_loot(menu[22][2], tonumber(biz_money) or 0)
         biz_money = 0
-        --imguiJson()
     end
 end
 
@@ -1035,6 +1018,16 @@ local newFrame = imgui.OnFrame(
                 imgui.SetNextWindowSize(imgui.ImVec2(700, 860), imgui.Cond.FirstUseEver) -- 600, 860
                 if imgui.BeginPopupModal(u8'Настройки', _, imgui.WindowFlags.NoResize) then
                     if imgui.BeginTabBar('Tabs') then
+                        if imgui.BeginTabItem(u8('Основная вкладка')) then
+
+                            if imgui.Checkbox(u8('Использовать автообновление?'), imguiJson.useAutoUpdate) then
+                                imguiJson()
+                            end
+                            imgui.SameLine(30)
+                            imgui.Question('Настоятельно рекомендую оставить! При обновлениях самой аризоны расчет предметов может полностью поломаться')
+
+                            imgui.EndTabItem()
+                        end
                         if imgui.BeginTabItem(u8'Выбор предметов') then -- первая вкладка
 
                             for i, data in ipairs(menu) do
@@ -1060,17 +1053,19 @@ local newFrame = imgui.OnFrame(
                                     if item[k][8][0] then
                                         if FarmData.search_filter:PassFilter(u8(item[k][1])) then
                                             local input_int_button = imgui.Button(u8(item[k][1] .. ' | Цена: ' .. number_separator(item[k][7][0]) .. '$'))
-                                            if item[k][9] then
-                                                imgui.SameLine()
-                                                local parse_arz_checkbox = imgui.Checkbox(u8('Изменять автоматически цену?'), item[k][9])
-                                                if parse_arz_checkbox then
-                                                    imguiJson()
+                                            if imguiJson.combo_test[0] > 0 then
+                                                if item[k][9] then
+                                                    imgui.SameLine()
+                                                    local parse_arz_checkbox = imgui.Checkbox(u8('Изменять автоматически цену?'), item[k][9])
+                                                    if parse_arz_checkbox then
+                                                        imguiJson()
+                                                    end
                                                 end
                                             end
 
                                             if input_int_button then
-                                                FarmData.current_editing = item[k][3] -- zaebis
-                                                FarmData.input_price = item[k][7] -- zaebis second
+                                                FarmData.current_editing = item[k][3]
+                                                FarmData.input_price = item[k][7]
                                             end
 
                                             imgui.NextColumn()
