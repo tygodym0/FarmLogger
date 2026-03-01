@@ -1222,7 +1222,7 @@ function load_files(downloadMode)
 
         local fontName = 'EagleSans Regular Regular.ttf'
 
-        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/main/fonts/EagleSans%20Regular%20Regular.ttf', getWorkingDirectory() .. '\\resource\\fonts\\' .. fontName, function(downloadId, status)
+        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/main/EagleSans%20Regular%20Regular.ttf', getWorkingDirectory() .. '\\resource\\fonts\\' .. fontName, function(downloadId, status)
             if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
                 FarmNormMSG('Шрифт успешно загружен!')
                 thisScript():reload()
@@ -1247,7 +1247,7 @@ function load_files(downloadMode)
             end
         end)
 
-        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/main/fonts/EagleSans%20Regular%20Regular.ttf', getWorkingDirectory() .. '\\resourse\\fonts\\' .. fontName, function(downloadId, status)
+        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/main/EagleSans%20Regular%20Regular.ttf', getWorkingDirectory() .. '\\resourse\\fonts\\' .. fontName, function(downloadId, status)
             if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
                 FarmNormMSG('Шрифт загружен. 2/' .. totalDownloads)
 
