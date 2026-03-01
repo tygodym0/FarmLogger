@@ -1,8 +1,10 @@
 script_properties("work-in-pause")
-script_version('0.0.3')
+script_version('0.0.4')
 --[[ 0.0.1 -> 0.0.2 - Добавлена полная поддержка для НФТ-Контейнеров
     0.0.2 -> 0.0.3 - Добавлена полная работа автоматических изменений цен с арз-маркета
+    0.0.3 -> 0.0.4 - Фикс некоторых малых багов, доработка интерфейса. Возможность скачивания шрифта и либы
 ]]
+--HIDE PENIS
 
 local effil = require("effil")
 local imgui = require 'mimgui'
@@ -13,16 +15,19 @@ local encoding = require 'encoding'
 encoding.default = 'CP1251'
 u8 = encoding.UTF8
 
-local JsonStatus, Json = pcall(require, 'carbjsonconfig')
-assert(JsonStatus, '[FarmLog] carbJsonConfg lib not found')
+local carbStatus, Json = pcall(require, 'carbjsonconfig')
+local shriftStatus = nil
+
+local fontPath = getWorkingDirectory() .. '\\resource\\fonts\\EagleSans Regular Regular.ttf'
+if doesFileExist(fontPath) then
+    shriftStatus = true
+else
+    shriftStatus = false
+end
 
 local function encodeUrl(data) local function valueToUrlEncode(str) str = str:gsub('([^%w])', function(char) return string.format('%%%02X', string.byte(char)) end) return str end local t = {} for k, v in pairs(data) do if type(v) == 'table' then local n = {} for _, j in ipairs(v) do table.insert(n, valueToUrlEncode(u8(tostring(j)))) end if #n ~= 0 then table.insert(t, string.format('%s=%s', k, table.concat(n, '%2C'))) end else v = valueToUrlEncode(u8(tostring(v))) table.insert(t, string.format('%s=%s', k, v)) end end return u8(table.concat(t, '&')) end local function createRequest(_method, _url, _body) local requests = require('requests') local success, response = pcall(requests.request, _method, _url, _body) if success then response.json, response.xml = nil, nil return true, response else return false, response end end local function createEffilThread(method, url, body, callback) local thread = effil.thread(createRequest)(method, url, body) lua_thread.create(function() while true do wait(10) local status, err = thread:status() if not status or err then return callback(nil, nil, err) end if status == 'completed' or status == 'canceled' then local success, response = thread:get() if not success then return callback(nil, nil, response) end if response and type(response.text) == 'string' and response.text:len() ~= 0 then response.text = u8:decode(response.text) end return callback(response.status_code, response.text, nil) end end end) end
 local async_http_request = { request = {} }
 async_http_request.__index = async_http_request
-
-if not doesDirectoryExist("moonloader/FarmLogger") then
-	createDirectory("moonloader/FarmLogger")
-end
 
 local header_content_types = {
     ['xform'] = 'application/x-www-form-urlencoded',
@@ -69,6 +74,7 @@ local imguiJson = {
     az = imgui.new.int(60000),
     combo_test = imgui.new.int(),
     useAutoUpdate = imgui.new.bool(true),
+    useNewBizButton = imgui.new.bool(true),
     premiumvipy_status = imgui.new.bool(true),
     midas3sloti_status = imgui.new.bool(true),
     leshiy_status = imgui.new.bool(true),
@@ -363,7 +369,6 @@ if (0 == document.getElementsByClassName("lua-btn-take-all").length) {
     }
 }]]
 
-
 local item = {
     [1]  = {'Платиновая рулетка',                   'платиновую рулетку',                   'platinum_r',                      imgui.new.int(imguiJson.platinum_r_price),                'Цена платиновой рулетки:',                     '##set_price_platinum_roulette',          imguiJson.platinum_r_price,                 imguiJson.total_roulette_status,                imguiJson.platinum_r_status_parse_price,              1425,     25},
     [2]  = {'Золотая рулетка',                      'золотую рулетку',                      'gold_r',                          imgui.new.int(imguiJson.gold_r_price),                    'Цена золотой рулетки:',                        '##set_price_gold_roulette',              imguiJson.gold_r_price,                     imguiJson.total_roulette_status,                imguiJson.gold_r_status_parse_price,                  557,      25},
@@ -570,6 +575,7 @@ function add_loot(loot, value)
     FarmLog.weeks[currentWeek][loot] = FarmLog.weeks[currentWeek][loot] + value
     FarmLog.months[currentMonth][loot] = FarmLog.months[currentMonth][loot] + value
     FarmLog()
+    imguiJson() -- Для ParseItems
 end
 
 function sampEvents.onServerMessage(color, message)
@@ -773,17 +779,25 @@ end
 imgui.OnInitialize(function()
     imgui.GetIO().IniFilename = nil
 
-    local config = imgui.ImFontConfig()
-    config.MergeMode = true
-    config.PixelSnapH = true
+    local sucsess, err = pcall(function()
+        local config = imgui.ImFontConfig()
+        config.MergeMode = true
+        config.PixelSnapH = true
 
-    local iconRanges = imgui.new.ImWchar[3](faicons.min_range, faicons.max_range, 0)
-    local glyph_ranges = imgui.GetIO().Fonts:GetGlyphRangesCyrillic()
-    imgui.GetIO().Fonts:Clear()
-    imgui.GetIO().Fonts:AddFontFromFileTTF('moonloader/resource/fonts/EagleSans Regular Regular.ttf', 16.0, nil, glyph_ranges)
-    imgui.GetIO().Fonts:AddFontFromMemoryCompressedBase85TTF(faicons.get_font_data_base85('regular'), 18, config, iconRanges)
+        local iconRanges = imgui.new.ImWchar[3](faicons.min_range, faicons.max_range, 0)
+        local glyph_ranges = imgui.GetIO().Fonts:GetGlyphRangesCyrillic()
+        imgui.GetIO().Fonts:Clear()
+        imgui.GetIO().Fonts:AddFontFromFileTTF('moonloader/resource/fonts/EagleSans Regular Regular.ttf', 16.0, nil, glyph_ranges)
+        imgui.GetIO().Fonts:AddFontFromMemoryCompressedBase85TTF(faicons.get_font_data_base85('regular'), 18, config, iconRanges)
 
-    SoftBlueTheme()
+        SoftBlueTheme()
+    end)
+
+    if not sucsess then
+        FarmErrorMSG('Ошибка загрузки шрифта!')
+        shriftStatus = false
+        SoftBlueTheme()
+    end
 end)
 
 local newFrame = imgui.OnFrame(
@@ -1026,6 +1040,12 @@ local newFrame = imgui.OnFrame(
                             imgui.SameLine(30)
                             imgui.Question('Настоятельно рекомендую оставить! При обновлениях самой аризоны расчет предметов может полностью поломаться')
 
+                            if imgui.Checkbox(u8('Заменить кнопку "Пополнить" в бизнесе на "Забрать все"'), imguiJson.useNewBizButton) then
+                                imguiJson()
+                            end
+                            imgui.SameLine(30)
+                            imgui.Question('Заменяет старую кнопку "Пополнить" на "Забрать все". Благодаря новой кнопке не нужно вручную в диалоге вводить всю финку, он сам ее соберет при нажатии')
+
                             imgui.EndTabItem()
                         end
                         if imgui.BeginTabItem(u8'Выбор предметов') then -- первая вкладка
@@ -1048,30 +1068,32 @@ local newFrame = imgui.OnFrame(
                             FarmData.search_filter:Draw('##searchFilterr', 562) -- default 562
                             imgui.BeginChild('##stats', imgui.ImVec2(672, 650), true) -- 572, 650
 
-                            for k, _ in ipairs(item) do
+                            for k = 1, #item do
                                 if item[k][1] and item[k][7] and (item[k][8]) then
                                     if item[k][8][0] then
                                         if FarmData.search_filter:PassFilter(u8(item[k][1])) then
+
                                             local input_int_button = imgui.Button(u8(item[k][1] .. ' | Цена: ' .. number_separator(item[k][7][0]) .. '$'))
-                                            if imguiJson.combo_test[0] > 0 then
-                                                if item[k][9] then
-                                                    imgui.SameLine()
-                                                    local parse_arz_checkbox = imgui.Checkbox(u8('Изменять автоматически цену?'), item[k][9])
-                                                    if parse_arz_checkbox then
-                                                        imguiJson()
-                                                    end
-                                                end
-                                            end
 
                                             if input_int_button then
                                                 FarmData.current_editing = item[k][3]
                                                 FarmData.input_price = item[k][7]
                                             end
 
-                                            imgui.NextColumn()
-                                            imgui.Columns(1)
-                                            imgui.Separator()
+                                            if imguiJson.combo_test[0] > 0 then
+                                                imgui.SameLine()
+                                                local text = u8('Изменять автоматически цену? ##' .. k)
+                                                if item[k][9] then
+                                                    imgui.SameLine()
+                                                    if imgui.Checkbox(text, item[k][9]) then
+                                                        imguiJson()
+                                                    end
+                                                else
+                                                    imgui.Text(u8('Этот предмет мы не можем менять!'))
+                                                end
+                                            end
 
+                                            imgui.Separator()
                                         end
                                     end
                                 end
@@ -1093,7 +1115,7 @@ local newFrame = imgui.OnFrame(
                             imgui.EndTabItem()
                         end
                         if imgui.BeginTabItem(u8'Arz-Market вкладка') then -- третья вкладка
-                            imgui.Text(u8('Это вкладка для парсинга данных со статистики арз-маркета\n1) Использование вкладки предполагает наличие у вас самого скрипта Arz-Market, если его...\n...нет - будут краши и проблемы\n2) При использовании премиум-таблицы у вас должна быть активная подписка на маркет.\nЕсли ее нет - пользуйтесь маркетплейсом\n3) Если вы включили какую-либо опцию, тогда во вкладке "Установка цен", отметьте...\n...необходимые предметы для изменений'))
+                            imgui.Text(u8('Это вкладка для парсинга данных со статистики арз-маркета\nВАЖНЫЕ ЗАМЕЧАНИЯ:\n\n1) При использовании премиум-таблицы у вас должна быть активная подписка на маркет.\nЕсли ее нет - пользуйтесь маркетплейсом\n\n2) Если вы включили какую-либо опцию, тогда во вкладке "Установка цен", отметьте...\n...необходимые предметы для изменений'))
                             imgui.SetNextItemWidth(500)
                             if imgui.Combo(u8'Список', imguiJson.combo_test, ImItems, #item_list) then
                                 imguiJson()
@@ -1154,6 +1176,16 @@ function main()
 
     user_nickname = (sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(1))))
 
+    --check_upd()
+
+    if carbStatus == false and shriftStatus == false then -- Если нет обоих
+        load_files(3)
+    elseif carbStatus == true and shriftStatus == false then -- Если нет шрифта
+        load_files(2)
+    elseif carbStatus == false and shriftStatus == true then -- Если нет карбжсона
+        load_files(1)
+    end
+
     for i, data in ipairs(menu) do
         if data and data[6] then
             cashedCheckboxTexts[i] = u8(data[6])
@@ -1164,20 +1196,83 @@ function main()
         renderWindow[0] = not renderWindow[0]
     end)
 
+    sampRegisterChatCommand('che', function()
+        print(tostring(imguiJson.gold_r_status_parse_price))
+        imguiJson.gold_r_status_parse_price = not imguiJson.gold_r_status_parse_price
+        print(tostring(imguiJson.gold_r_status_parse_price))
+    end)
+
     while true do
         wait(0)
     end
 end
 
+function load_files(downloadMode)
+    local downloadStatus = require('moonloader').download_status
+
+    if downloadMode == 1 then
+        FarmNormMSG('Загружаем библиотеку CarbJsonConfig.lua ...')
+
+        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\lib\\CarbJsonConfig.lua', function(downloadId, status)
+            if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
+                FarmNormMSG('Библиотека CarbJsonConfig.lua успешно загружена!')
+                thisScript():reload()
+            end
+        end)
+    elseif downloadMode == 2 then
+
+        FarmNormMSG('Загружаем шрифт...')
+
+        local fontName = 'EagleSans Regular Regular.ttf'
+
+        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\resource\\fonts\\' .. fontName, function(downloadId, status)
+            if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
+                FarmNormMSG('Шрифт успешно загружен!')
+                thisScript():reload()
+            end
+        end)
+    elseif downloadMode == 3 then
+        FarmNormMSG('Загружаем все необходимые фалйы...')
+
+        local completedDownloads = 0
+        local totalDownloads = 2 -- CarbJsonConfig + шрифт
+        local fontName = 'EagleSans Regular Regular.ttf'
+
+        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\lib\\CarbJsonConfig.lua', function(downloadId, status)
+            if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
+                FarmNormMSG('Библиотека загружена. 1/' .. totalDownloads)
+
+                completedDownloads = completedDownloads + 1
+                if completedDownloads == totalDownloads then
+                    FarmNormMSG('Все файлы успешно загружены!')
+                    thisScript():reload()
+                end
+            end
+        end)
+
+        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\resourse\\fonts\\' .. fontName, function(downloadId, status)
+            if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
+                FarmNormMSG('Шрифт загружен. 2/' .. totalDownloads)
+
+                completedDownloads = completedDownloads + 1
+                if completedDownloads == totalDownloads then
+                    FarmNormMSG('Все файлы успешно загружены!')
+                    thisScript():reload()
+                end
+            end
+        end)
+    end
+end
+
 function check_upd()
     FarmNormMSG('Проверяем обновления для основной версии')
-    autoupdate(jsonUrl, '##nil')
+    autoupdate('https://raw.githubusercontent.com/tygodym0/FarmLogger/refs/heads/main/version.json', '##nil')
 end
 
 function autoupdate(jsonUrl, threadParam)
     local downloadStatus = require('moonloader').download_status
 
-    local tempJsonPath = getWorkingDirectory() .. '\\' .. thisScript().name .. '-version.json'
+    local tempJsonPath = getWorkingDirectory() .. '\\' .. thisScript().name .. '-farm_version.json'
 
     if doesFileExist(tempJsonPath) then
         os.remove(tempJsonPath)
@@ -1565,7 +1660,6 @@ function ParseItems(some_item, some_minimal_count, some_element)
                         local average = sum / #all_selected_prices
 
                         item[some_element][7][0] = tonumber(average)
-                        imguiJson()
                     end
                 end
             end
@@ -1613,7 +1707,7 @@ addEventHandler("onReceivePacket", function(id, bs)
             
             local eventCall, dataCall = string.match(cmd, "window%.executeEvent%('([%w.]+)', `(.*)`%)")
 
-            if eventCall == 'event.business.info.initializeMenuTabs' and cmd:find('Управление бизнесом') then
+            if eventCall == 'event.business.info.initializeMenuTabs' and cmd:find('Управление бизнесом') and imguiJson.useNewBizButton then
                 evalanon(JS)
             end
 
@@ -1741,6 +1835,16 @@ function imgui.ShowHint(description)
             imgui.PushTextWrapPos(600)
                 imgui.TextUnformatted(description)
             imgui.PopTextWrapPos()
+        imgui.EndTooltip()
+    end
+end
+
+function imgui.Question(text)
+    imgui.SameLine()
+    imgui.TextDisabled("(?)")
+    if imgui.IsItemHovered() then
+        imgui.BeginTooltip()
+        imgui.TextUnformatted(u8(text))
         imgui.EndTooltip()
     end
 end
@@ -1924,28 +2028,41 @@ function async_http_request:send()
     createEffilThread(self.request.method, self.request.url, self.request.body, self.request.callback)
 end
 
-function onScriptTerminate(scr,qgame) -- gg
+--[[function onScriptTerminate(scr,qgame) -- gg
 	if scr == thisScript() then
 
-        for i = 1, #item do
-            if FarmLog[currentDate][item[i][3]] == nil then
-                FarmLog[currentDate][item[i][3]] = 0 
-            end
-
-            if FarmLog[currentWeek][item[i][3]] == nil then
-                FarmLog[currentWeek][item[i][3]] = 0
-            end
-
-            if FarmLog[currentMonth][item[i][3]] == nil then
-                FarmLog[currentMonth][item[i][3]] = 0
-            end
+        if FarmLog.days[currentDate] == nil then
+            FarmLog.days[currentDate] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
         end
 
-        imguiJson()
-        FarmLog()
-    end
-    FarmErrorMSG('По какой-то причине скрипт прекратил свою работу. Пожалуйста, посмотрите в консоль, в чем заключается ошибка, и отправьте ее арону стиллеру')
-end
+        if FarmLog.weeks[currentWeek] == nil then
+            FarmLog.weeks[currentWeek] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
+        end
+
+        if FarmLog.months[currentMonth] == nil then
+            FarmLog.months[currentMonth] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
+        end
+
+        for i = 1, #item do
+
+            if FarmLog.days[currentDate][item[i][3]] --[[== nil then
+                FarmLog.days[currentDate][item[i][3]] --[[= 0 
+            end
+
+            if FarmLog.weeks[currentWeek][item[i][3]] --[[== nil then
+                FarmLog.weeks[currentWeek][item[i][3]] --= 0
+            --end
+
+            --if FarmLog.months[currentMonth][item[i][3]] == nil then
+                --FarmLog.months[currentMonth][item[i][3]] = 0
+            --end
+        --end
+
+        --imguiJson()
+        --FarmLog()
+    --end
+    --FarmErrorMSG('По какой-то причине скрипт прекратил свою работу. Пожалуйста, посмотрите в консоль, в чем заключается ошибка, и отправьте ее арону стиллеру')
+--end
 
 function FarmNormMSG(msg)
     sampAddChatMessage('{b9ff00}[Farm {FFD700}log]{8aceff} ' .. tostring(msg), 16777215)
