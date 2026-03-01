@@ -4,7 +4,6 @@ script_version('0.0.4')
     0.0.2 -> 0.0.3 - Добавлена полная работа автоматических изменений цен с арз-маркета
     0.0.3 -> 0.0.4 - Фикс некоторых малых багов, доработка интерфейса. Возможность скачивания шрифта и либы
 ]]
---HIDE PENIS
 
 local effil = require("effil")
 local imgui = require 'mimgui'
@@ -207,16 +206,21 @@ local imguiJson = {
     nft_restavracia_acs_price = imgui.new.int(1)
 }
 
-Json.load(getWorkingDirectory() .. "\\config\\imguiJson7.json", imguiJson);
-imguiJson()
+local succsess1, err1 = pcall(function()
+    Json.load(getWorkingDirectory() .. "\\config\\imguiJson7.json", imguiJson);
+    imguiJson()
+end)
 
 local FarmLog = {
     days = {},
     weeks = {},
     months = {}
 }
-Json.load(getWorkingDirectory() .. "\\config\\FarmLog.json", FarmLog);
-FarmLog()
+
+local sucsess2, err2 = pcall(function()
+    Json.load(getWorkingDirectory() .. "\\config\\FarmLog.json", FarmLog);
+    FarmLog()
+end)
 
 local months = {
     [1]="Январь", [2]="Февраль", [3]="Март", [4]="Апрель", 
@@ -541,7 +545,7 @@ function add_loot(loot, value)
     local currentMonth = formatDate()
     if FarmLog.days[currentDate] == nil then
         FarmLog.days[currentDate] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
-        if imgui.combo_test[0] == 1 then
+        if imguiJson.combo_test[0] == 1 then
             for i = 1, #item do
                 if item[i][9] then
                     ParseItems(item[i][1], item[i][11])
@@ -551,7 +555,7 @@ function add_loot(loot, value)
     end
     if FarmLog.weeks[currentWeek] == nil then
         FarmLog.weeks[currentWeek] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
-        if imgui.combo_test[0] == 2 then
+        if imguiJson.combo_test[0] == 2 then
             for i = 1, #item do
                 if item[i][9] then
                     ParseItems(item[i][1], item[i][11])
@@ -561,7 +565,7 @@ function add_loot(loot, value)
     end
     if FarmLog.months[currentMonth] == nil then
         FarmLog.months[currentMonth] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
-        if imgui.combo_test[0] == 3 then
+        if imguiJson.combo_test[0] == 3 then
             for i = 1, #item do
                 if item[i][9] then
                     ParseItems(item[i][1], item[i][11])
@@ -1206,7 +1210,7 @@ function load_files(downloadMode)
     if downloadMode == 1 then
         FarmNormMSG('Загружаем библиотеку CarbJsonConfig.lua ...')
 
-        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\lib\\CarbJsonConfig.lua', function(downloadId, status)
+        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/refs/heads/main/carbJsonConfig.lua', getWorkingDirectory() .. '\\lib\\CarbJsonConfig.lua', function(downloadId, status)
             if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
                 FarmNormMSG('Библиотека CarbJsonConfig.lua успешно загружена!')
                 thisScript():reload()
@@ -1218,7 +1222,7 @@ function load_files(downloadMode)
 
         local fontName = 'EagleSans Regular Regular.ttf'
 
-        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\resource\\fonts\\' .. fontName, function(downloadId, status)
+        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/main/fonts/EagleSans%20Regular%20Regular.ttf', getWorkingDirectory() .. '\\resource\\fonts\\' .. fontName, function(downloadId, status)
             if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
                 FarmNormMSG('Шрифт успешно загружен!')
                 thisScript():reload()
@@ -1231,7 +1235,7 @@ function load_files(downloadMode)
         local totalDownloads = 2 -- CarbJsonConfig + шрифт
         local fontName = 'EagleSans Regular Regular.ttf'
 
-        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\lib\\CarbJsonConfig.lua', function(downloadId, status)
+        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/refs/heads/main/carbJsonConfig.lua', getWorkingDirectory() .. '\\lib\\CarbJsonConfig.lua', function(downloadId, status)
             if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
                 FarmNormMSG('Библиотека загружена. 1/' .. totalDownloads)
 
@@ -1243,7 +1247,7 @@ function load_files(downloadMode)
             end
         end)
 
-        download_id = downloadUrlToFile(jsonUrl, getWorkingDirectory() .. '\\resourse\\fonts\\' .. fontName, function(downloadId, status)
+        download_id = downloadUrlToFile('https://raw.githubusercontent.com/tygodym0/FarmLogger/main/fonts/EagleSans%20Regular%20Regular.ttf', getWorkingDirectory() .. '\\resourse\\fonts\\' .. fontName, function(downloadId, status)
             if status == downloadStatus.STATUS_ENDDOWNLOADDATA then
                 FarmNormMSG('Шрифт загружен. 2/' .. totalDownloads)
 
