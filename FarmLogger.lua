@@ -1,8 +1,9 @@
 script_properties("work-in-pause")
-script_version('0.0.4')
+script_version('0.0.5')
 --[[ 0.0.1 -> 0.0.2 - Добавлена полная поддержка для НФТ-Контейнеров
     0.0.2 -> 0.0.3 - Добавлена полная работа автоматических изменений цен с арз-маркета
     0.0.3 -> 0.0.4 - Фикс некоторых малых багов, доработка интерфейса. Возможность скачивания шрифта и либы
+    0.0.4 -> 0.0.5 - Добавлена полная поддержка изменения цен с АРЗ-Маркета. Теперь правильно считает лут с NFT
 ]]
 
 local effil = require("effil")
@@ -71,6 +72,8 @@ local imguiJson = {
     vc = imgui.new.int(118),
     az = imgui.new.int(60000),
     combo_test = imgui.new.int(),
+    showDopTextForAz = imgui.new.bool(true),
+    togetherSAandAZ = imgui.new.bool(true),
     useAutoUpdate = imgui.new.bool(true),
     useNewBizButton = imgui.new.bool(true),
     premiumvipy_status = imgui.new.bool(true),
@@ -233,11 +236,11 @@ function formatDate()
     return months[m] .. " (" .. os.date("%m") .. "), " .. os.date("%Y")
 end
 
-function getWeekRange(date) -- явный параметр
+function getWeekRange(date)
     local d, m, y = date:match("(%d+).(%d+).(%d+)")
     local t = os.time({day = tonumber(d), month = tonumber(m), year = 2000 + tonumber(y)})
-    local wday = tonumber(os.date("%w", t)) -- 0-6 (0=воскресенье)
-    wday = wday == 0 and 6 or wday-1 -- преобразуем в 0-5 (пн-сб), 6 (вс)
+    local wday = tonumber(os.date("%w", t))
+    wday = wday == 0 and 6 or wday-1
     local start = os.date("*t", t - wday*86400)
     local end_ = os.date("*t", t + (6-wday)*86400)
     return ("%02d.%02d-%02d.%02d"):format(start.day, start.month, end_.day, end_.month)
@@ -372,55 +375,57 @@ if (0 == document.getElementsByClassName("lua-btn-take-all").length) {
     }
 }]]
 
+-- Значение imgui.new.bool(false) равно пустоте. Неиспользующуйся элемент
+
 local item = {
-    [1]  = {'Платиновая рулетка',                   'платиновую рулетку',                   'platinum_r',                      imgui.new.int(imguiJson.platinum_r_price),                'Цена платиновой рулетки:',                     '##set_price_platinum_roulette',          imguiJson.platinum_r_price,                 imguiJson.total_roulette_status,                imguiJson.platinum_r_status_parse_price,              1425,     25},
-    [2]  = {'Золотая рулетка',                      'золотую рулетку',                      'gold_r',                          imgui.new.int(imguiJson.gold_r_price),                    'Цена золотой рулетки:',                        '##set_price_gold_roulette',              imguiJson.gold_r_price,                     imguiJson.total_roulette_status,                imguiJson.gold_r_status_parse_price,                  557,      25},
-    [3]  = {'Серебряная рулетка',                   'серебряную рулетку',                   'silver_r',                        imgui.new.int(imguiJson.silver_r_price),                  'Цена серебряной рулетки:',                     '##set_price_silver_roulette',            imguiJson.silver_r_price,                   imguiJson.total_roulette_status,                imguiJson.silver_r_status_parse_price,                556,      25},
-    [4]  = {'Бронзовая рулетка',                    'бронзовую рулетку',                    'bronze_r',                        imgui.new.int(imguiJson.bronze_r_price),                  'Цена бронзовой рулетки:',                      '##set_price_bronze_roulette',            imguiJson.bronze_r_price,                   imguiJson.total_roulette_status,                imguiJson.bronze_r_status_parse_price,                555,      25},
-    [5]  = {'Ларец с премией',                      'Ларец с премией',                      'larec_premiya',                   imgui.new.int(imguiJson.larec_premiya_price),             'Цена ларца с премией:',                        '##set_price_larec_premiya',              imguiJson.larec_premiya_price,              imguiJson.total_boxes_status,                   imguiJson.larec_premiya_status_parse_price,           1853,     25},
-    [6]  = {'Super Car Box',                        'Ларец Super Car',                      'super_car_box',                   imgui.new.int(imguiJson.super_car_box_price),             'Цена ларца Super Car Box:',                    '##set_price_super_car_box',              imguiJson.super_car_box_price,              imguiJson.total_boxes_status,                   imguiJson.super_car_box_status_parse_price,           1852,     25},
-    [7]  = {'Concept Car Luxury',                   'Concept Car Luxury',                   'concept_car_luxury_box',          imgui.new.int(imguiJson.concept_car_luxury_price),        'Цена ларца Concept Car Luxury:',               '##set_price_concept_car_luxury_box',     imguiJson.concept_car_luxury_price,         imguiJson.total_boxes_status,                   imguiJson.concept_car_luxury_box_status_parse_price,  3920,     25},
-    [8]  = {'Ларец развозчика продуктов',           'Ларец развозчика продуктов',           'products_carrier_box',            imgui.new.int(imguiJson.products_carrier_box_price),      'Цена ларца развозчика продуктов:',             '##set_price_product_carrier_box',        imguiJson.products_carrier_box_price,       imguiJson.total_boxes_status,                   imguiJson.products_carrier_box_status_parse_price,    4793,     25},
-    [9]  = {'Ларец рыболова',                       'Ларец рыболова',                       'fisher_box',                      imgui.new.int(imguiJson.fisher_box_price),                'Цена ларца рыболова:',                         '##set_price_fisher_box',                 imguiJson.fisher_box_price,                 imguiJson.total_boxes_status,                   imguiJson.fisher_box_status_parse_price,              4242,     25},
-    [10] = {'Ларец кладоискателя',                  'Ларец кладоискателя',                  'treasure_hunter_box',             imgui.new.int(imguiJson.treasure_hunter_box_price),       'Цена ларца кладоискателя:',                    '##set_price_treasure_hunter_box',        imguiJson.treasure_hunter_box_price,        imguiJson.total_boxes_status,                   imguiJson.treasure_hunter_box_status_parse_price,     4794,     25},
-    [11] = {'Ларец крафтера',                       'Ларец крафтера',                       'crafter_box',                     imgui.new.int(imguiJson.crafter_box_price),               'Цена ларца крафтера:',                         '##set_price_crafter_box',                imguiJson.crafter_box_price,                imguiJson.total_boxes_status,                   imguiJson.crafter_box_status_parse_price,             3565,     25},
-    [12] = {'Ларец кастомных аксессуаров',          'Ларец кастомных аксессуаров',          'custom_accessories_box',          imgui.new.int(imguiJson.custom_acessories_box_price),     'Цена ларца кастомных акссесуаров:',            '##set_price_custom_accessories_box',     imguiJson.custom_acessories_box_price,      imguiJson.total_boxes_status,                   imguiJson.custom_accessories_box_status_parse_price,  2187,     25},
-    [13] = {'Ларец Mortal Combat',                  'Ларец Mortal Combat',                  'mortal_combat_box',               imgui.new.int(imguiJson.mortal_combat_box_price),         'Цена ларца Mortal Combat:',                    '##set_price_mortal_combat_box',          imguiJson.mortal_combat_box_price,          imguiJson.total_boxes_status,                   imguiJson.mortal_combat_box_status_parse_price,       3991,     25},
-    [14] = {'Рандомный ларец',                      'Рандомный Ларец',                      'random_box',                      imgui.new.int(imguiJson.random_box_price),                'Цена рандомного ларца:',                       '##set_price_random_box',                 imguiJson.random_box_price,                 imguiJson.total_boxes_status,                   imguiJson.random_box_status_parse_price,              4584,     25},
-    [15] = {'Ларец Олигарха',                       'Ларец Олигарха',                       'oligarch_box',                    imgui.new.int(imguiJson.oligarch_box_price),              'Цена ларца олигарха:',                         '##set_price_oligarch_box',               imguiJson.oligarch_box_price,               imguiJson.total_boxes_status,                   imguiJson.oligarch_box_status_parse_price,            2149,     25},
-    [16] = {'Ларец организации',                    'Ларец организации',                    'organization_box',                imgui.new.int(imguiJson.organization_box_price),          'Цена ларца организации:',                      '##set_price_organization_box',           imguiJson.organization_box_price,           imguiJson.total_boxes_status,                   imguiJson.organization_box_status_parse_price,        3559,     25},
-    [17] = {'Ларец Fortnite',                       'Ларец Fortnite',                       'fortnite_box',                    imgui.new.int(imguiJson.fortnite_box_price),              'Цена ларца Fortnite:',                         '##set_price_fortnite_box',               imguiJson.fortnite_box_price,               imguiJson.total_boxes_status,                   imguiJson.fortnite_box_status_parse_price,            7480,     25},
-    [18] = {'Ностальгический ящик',                 'Ностальгический ящик',                 'nostalgic_box',                   imgui.new.int(imguiJson.nostalgic_box_price),             'Цена ностальгического ящика:',                 '##set_price_nostalgic_box',              imguiJson.nostalgic_box_price,              imguiJson.total_boxes_status,                   imguiJson.nostalgic_box_status_parse_price,           1939,     25},
-    [19] = {'Rare Box Yellow',                      'Rare Box Yellow',                      'rare_yellow_box',                 imgui.new.int(imguiJson.rare_yellow_box_price),           'Цена Rare Yellow Box:',                        '##set_price_rare_yellow_box',            imguiJson.rare_yellow_box_price,            imguiJson.total_boxes_status,                   imguiJson.rare_yellow_box_status_parse_price,         1637,     25},
-    [20] = {'Rare Box Red',                         'Rare Box Red',                         'rare_red_box',                    imgui.new.int(imguiJson.rare_red_box_price),              'Цена Rare Red Box:',                           '##set_price_rare_red_box',               imguiJson.rare_red_box_price,               imguiJson.total_boxes_status,                   imguiJson.rare_red_box_status_parse_price,            1638,     25},
-    [21] = {'Rare Box Blue',                        'Rare Box Blue',                        'rare_blue_box',                   imgui.new.int(imguiJson.rare_blue_box_price),             'Цена Rare Blue Box:',                          '##set_price_rare_blue_box',              imguiJson.rare_blue_box_price,              imguiJson.total_boxes_status,                   imguiJson.rare_blue_box_status_parse_price,           1639,     25},
-    [22] = {'Супер автоящик',                       'Супер авто-ящик',                      'super_auto_box',                  imgui.new.int(imguiJson.super_auto_box_price),            'Цена супер авто-ящика:',                       '##set_price_super_auto_box',             imguiJson.super_auto_box_price,             imguiJson.total_boxes_status,                   imguiJson.super_auto_box_status_parse_price,          1770,     25},
-    [23] = {'Супер мотоящик',                       'Супер мото-ящик',                      'super_moto_box',                  imgui.new.int(imguiJson.super_moto_box_price),            'Цена мото-ящика:',                             '##set_price_super_moto_box',             imguiJson.super_moto_box_price,             imguiJson.total_boxes_status,                   imguiJson.super_moto_box_status_parse_price,          1769,     25},
-    [24] = {'Ящик Marvel',                          'Ящик Marvel',                          'marvel_box',                      imgui.new.int(imguiJson.marvel_box_price),                'Цена ящика Marvel:',                           '##set_price_marvel_box',                 imguiJson.marvel_box_price,                 imguiJson.total_boxes_status,                   imguiJson.marvel_box_status_parse_price,              1766,     25},
-    [25] = {'Ящик Джентельменов',                   'Ящик Джентельменов',                   'gentleman_box',                   imgui.new.int(imguiJson.gentelman_box_price),             'Цена ящика джентельменов:',                    '##set_price_gentelman_box',              imguiJson.gentelman_box_price,              imguiJson.total_boxes_status,                   imguiJson.gentelman_box_status_parse_price,           1767,     25},
-    [26] = {'Ящик Minecraft',                       'Ящик Minecraft',                       'minecraft_box',                   imgui.new.int(imguiJson.minecraft_box_price),             'Цена ящик minecraft:',                         '##set_price_minecraft_box',              imguiJson.minecraft_box_price,              imguiJson.total_boxes_status,                   imguiJson.minecraft_box_status_parse_price,           1768,     25},
-    [27] = {'Одежда из секондхенда',                'Одежда из секонд-хенда',               'second_hand_box',                 imgui.new.int(imguiJson.second_hand_box_price),           'Цена одежды из секонд-хенда:',                 '##set_price_second_hand_box',            imguiJson.second_hand_box_price,            imguiJson.total_boxes_status,                   imguiJson.second_hand_box_status_parse_price,         2002,     25},
-    [28] = {'Ларец Tidex',                          'Ларец Tidex',                          'larec_tidex',                     imgui.new.int(imguiJson.larec_tidex_price),               'Цена ларца Tidex:',                            '##set_price_larec_tidex',                imguiJson.larec_tidex_price,                imguiJson.total_boxes_status,                   imguiJson.larec_tidex_status_parse_price,             5479,     25},
+    [1]  = {'Платиновая рулетка',                   'платиновую рулетку',                   'platinum_r',                      imgui.new.int(imguiJson.platinum_r_price),                'Цена платиновой рулетки:',                     '##set_price_platinum_roulette',          imguiJson.platinum_r_price,                 imguiJson.total_roulette_status,                imguiJson.platinum_r_status_parse_price,              1425,     10},
+    [2]  = {'Золотая рулетка',                      'золотую рулетку',                      'gold_r',                          imgui.new.int(imguiJson.gold_r_price),                    'Цена золотой рулетки:',                        '##set_price_gold_roulette',              imguiJson.gold_r_price,                     imguiJson.total_roulette_status,                imguiJson.gold_r_status_parse_price,                  557,      10},
+    [3]  = {'Серебрянaя рулетка',                   'серебряную рулетку',                   'silver_r',                        imgui.new.int(imguiJson.silver_r_price),                  'Цена серебряной рулетки:',                     '##set_price_silver_roulette',            imguiJson.silver_r_price,                   imguiJson.total_roulette_status,                imguiJson.silver_r_status_parse_price,                556,      10},
+    [4]  = {'Бронзовая рулетка',                    'бронзовую рулетку',                    'bronze_r',                        imgui.new.int(imguiJson.bronze_r_price),                  'Цена бронзовой рулетки:',                      '##set_price_bronze_roulette',            imguiJson.bronze_r_price,                   imguiJson.total_roulette_status,                imguiJson.bronze_r_status_parse_price,                555,      10},
+    [5]  = {'Ларец с премией',                      'Ларец с премией',                      'larec_premiya',                   imgui.new.int(imguiJson.larec_premiya_price),             'Цена ларца с премией:',                        '##set_price_larec_premiya',              imguiJson.larec_premiya_price,              imguiJson.total_boxes_status,                   imguiJson.larec_premiya_status_parse_price,           1853,     10},
+    [6]  = {'Super Car Box',                        'Ларец Super Car',                      'super_car_box',                   imgui.new.int(imguiJson.super_car_box_price),             'Цена ларца Super Car Box:',                    '##set_price_super_car_box',              imguiJson.super_car_box_price,              imguiJson.total_boxes_status,                   imguiJson.super_car_box_status_parse_price,           1852,     10},
+    [7]  = {'Concept Car Luxury',                   'Concept Car Luxury',                   'concept_car_luxury_box',          imgui.new.int(imguiJson.concept_car_luxury_price),        'Цена ларца Concept Car Luxury:',               '##set_price_concept_car_luxury_box',     imguiJson.concept_car_luxury_price,         imguiJson.total_boxes_status,                   imguiJson.concept_car_luxury_box_status_parse_price,  3920,     10},
+    [8]  = {'Ларец развозчика продуктов',           'Ларец развозчика продуктов',           'products_carrier_box',            imgui.new.int(imguiJson.products_carrier_box_price),      'Цена ларца развозчика продуктов:',             '##set_price_product_carrier_box',        imguiJson.products_carrier_box_price,       imguiJson.total_boxes_status,                   imguiJson.products_carrier_box_status_parse_price,    4793,     10},
+    [9]  = {'Ларец рыболова',                       'Ларец рыболова',                       'fisher_box',                      imgui.new.int(imguiJson.fisher_box_price),                'Цена ларца рыболова:',                         '##set_price_fisher_box',                 imguiJson.fisher_box_price,                 imguiJson.total_boxes_status,                   imguiJson.fisher_box_status_parse_price,              4242,     10},
+    [10] = {'Ларец кладоискателя',                  'Ларец кладоискателя',                  'treasure_hunter_box',             imgui.new.int(imguiJson.treasure_hunter_box_price),       'Цена ларца кладоискателя:',                    '##set_price_treasure_hunter_box',        imguiJson.treasure_hunter_box_price,        imguiJson.total_boxes_status,                   imguiJson.treasure_hunter_box_status_parse_price,     4794,     10},
+    [11] = {'Ларец крафтера',                       'Ларец крафтера',                       'crafter_box',                     imgui.new.int(imguiJson.crafter_box_price),               'Цена ларца крафтера:',                         '##set_price_crafter_box',                imguiJson.crafter_box_price,                imguiJson.total_boxes_status,                   imguiJson.crafter_box_status_parse_price,             3565,     10},
+    [12] = {'Ларец кастомных аксессуаров',          'Ларец кастомных аксессуаров',          'custom_accessories_box',          imgui.new.int(imguiJson.custom_acessories_box_price),     'Цена ларца кастомных акссесуаров:',            '##set_price_custom_accessories_box',     imguiJson.custom_acessories_box_price,      imguiJson.total_boxes_status,                   imguiJson.custom_accessories_box_status_parse_price,  2187,     10},
+    [13] = {'Ларец Mortal Combat',                  'Ларец Mortal Combat',                  'mortal_combat_box',               imgui.new.int(imguiJson.mortal_combat_box_price),         'Цена ларца Mortal Combat:',                    '##set_price_mortal_combat_box',          imguiJson.mortal_combat_box_price,          imguiJson.total_boxes_status,                   imguiJson.mortal_combat_box_status_parse_price,       3991,     10},
+    [14] = {'Рандомный ларец',                      'Рандомный Ларец',                      'random_box',                      imgui.new.int(imguiJson.random_box_price),                'Цена рандомного ларца:',                       '##set_price_random_box',                 imguiJson.random_box_price,                 imguiJson.total_boxes_status,                   imguiJson.random_box_status_parse_price,              4584,     10},
+    [15] = {'Ларец Олигарха',                       'Ларец Олигарха',                       'oligarch_box',                    imgui.new.int(imguiJson.oligarch_box_price),              'Цена ларца олигарха:',                         '##set_price_oligarch_box',               imguiJson.oligarch_box_price,               imguiJson.total_boxes_status,                   imguiJson.oligarch_box_status_parse_price,            2149,     10},
+    [16] = {'Ларец организации',                    'Ларец организации',                    'organization_box',                imgui.new.int(imguiJson.organization_box_price),          'Цена ларца организации:',                      '##set_price_organization_box',           imguiJson.organization_box_price,           imguiJson.total_boxes_status,                   imguiJson.organization_box_status_parse_price,        3559,     10},
+    [17] = {'Ларец Fortnite',                       'Ларец Fortnite',                       'fortnite_box',                    imgui.new.int(imguiJson.fortnite_box_price),              'Цена ларца Fortnite:',                         '##set_price_fortnite_box',               imguiJson.fortnite_box_price,               imguiJson.total_boxes_status,                   imguiJson.fortnite_box_status_parse_price,            7480,     10},
+    [18] = {'Ностальгический ящик',                 'Ностальгический ящик',                 'nostalgic_box',                   imgui.new.int(imguiJson.nostalgic_box_price),             'Цена ностальгического ящика:',                 '##set_price_nostalgic_box',              imguiJson.nostalgic_box_price,              imguiJson.total_boxes_status,                   imguiJson.nostalgic_box_status_parse_price,           1939,     10},
+    [19] = {'Rare Box Yellow',                      'Rare Box Yellow',                      'rare_yellow_box',                 imgui.new.int(imguiJson.rare_yellow_box_price),           'Цена Rare Yellow Box:',                        '##set_price_rare_yellow_box',            imguiJson.rare_yellow_box_price,            imguiJson.total_boxes_status,                   imguiJson.rare_yellow_box_status_parse_price,         1637,     10},
+    [20] = {'Rare Box Red',                         'Rare Box Red',                         'rare_red_box',                    imgui.new.int(imguiJson.rare_red_box_price),              'Цена Rare Red Box:',                           '##set_price_rare_red_box',               imguiJson.rare_red_box_price,               imguiJson.total_boxes_status,                   imguiJson.rare_red_box_status_parse_price,            1638,     10},
+    [21] = {'Rare Box Blue',                        'Rare Box Blue',                        'rare_blue_box',                   imgui.new.int(imguiJson.rare_blue_box_price),             'Цена Rare Blue Box:',                          '##set_price_rare_blue_box',              imguiJson.rare_blue_box_price,              imguiJson.total_boxes_status,                   imguiJson.rare_blue_box_status_parse_price,           1639,     10},
+    [22] = {'Супер автоящик',                       'Супер авто-ящик',                      'super_auto_box',                  imgui.new.int(imguiJson.super_auto_box_price),            'Цена супер авто-ящика:',                       '##set_price_super_auto_box',             imguiJson.super_auto_box_price,             imguiJson.total_boxes_status,                   imguiJson.super_auto_box_status_parse_price,          1770,     10},
+    [23] = {'Супер мотоящик',                       'Супер мото-ящик',                      'super_moto_box',                  imgui.new.int(imguiJson.super_moto_box_price),            'Цена мото-ящика:',                             '##set_price_super_moto_box',             imguiJson.super_moto_box_price,             imguiJson.total_boxes_status,                   imguiJson.super_moto_box_status_parse_price,          1769,     10},
+    [24] = {'Ящик Marvel',                          'Ящик Marvel',                          'marvel_box',                      imgui.new.int(imguiJson.marvel_box_price),                'Цена ящика Marvel:',                           '##set_price_marvel_box',                 imguiJson.marvel_box_price,                 imguiJson.total_boxes_status,                   imguiJson.marvel_box_status_parse_price,              1766,     10},
+    [25] = {'Ящик Джентельменов',                   'Ящик Джентельменов',                   'gentleman_box',                   imgui.new.int(imguiJson.gentelman_box_price),             'Цена ящика джентельменов:',                    '##set_price_gentelman_box',              imguiJson.gentelman_box_price,              imguiJson.total_boxes_status,                   imguiJson.gentelman_box_status_parse_price,           1767,     10},
+    [26] = {'Ящик Minecraft',                       'Ящик Minecraft',                       'minecraft_box',                   imgui.new.int(imguiJson.minecraft_box_price),             'Цена ящик minecraft:',                         '##set_price_minecraft_box',              imguiJson.minecraft_box_price,              imguiJson.total_boxes_status,                   imguiJson.minecraft_box_status_parse_price,           1768,     10},
+    [27] = {'Одежда из секондхенда',                'Одежда из секонд-хенда',               'second_hand_box',                 imgui.new.int(imguiJson.second_hand_box_price),           'Цена одежды из секонд-хенда:',                 '##set_price_second_hand_box',            imguiJson.second_hand_box_price,            imguiJson.total_boxes_status,                   imguiJson.second_hand_box_status_parse_price,         2002,     10},
+    [28] = {'Ларец Tidex',                          'Ларец Tidex',                          'larec_tidex',                     imgui.new.int(imguiJson.larec_tidex_price),               'Цена ларца Tidex:',                            '##set_price_larec_tidex',                imguiJson.larec_tidex_price,                imguiJson.total_boxes_status,                   imguiJson.larec_tidex_status_parse_price,             5479,     10},
     [29] = {'Пасхальный ларец 2024',                'Пасхальный ларец 2024',                'larec_pasxa_2024',                imgui.new.int(imguiJson.larec_pasxa_2024_price),          'Цена пасхального ларца 2024:',                 '##set_price_larec_pasxa_2024',           imguiJson.larec_pasxa_2024_price,           imguiJson.total_boxes_status,                   imguiJson.larec_pasxa_2024_status_parse_price,        7698,     15},
     [30] = {'Ларец семейных охранников',            'Ларец семейных охранников',            'larec_family_ohra',               imgui.new.int(imguiJson.larec_family_ohra_price),         'Цена ларца семейных охранников:',              '##set_price_larec_family_ohra',          imguiJson.larec_family_ohra_price,          imguiJson.total_boxes_status,                   imguiJson.larec_family_ohra_status_parse_price,       6199,     10},
     [31] = {'Ларец хэллоуина 2022',                 'Ларец хэллоуина 2022',                 'larec_hallowen_2024',             imgui.new.int(imguiJson.larec_hallowen_2024_price),       'Цена ларца хэллоуина 2024:',                   '##set_price_larec_hallowen_2024',        imguiJson.larec_hallowen_2024_price,        imguiJson.total_boxes_status,                   imguiJson.larec_hallowen_2024_status_parse_price,     5810,     10}, -- Ларец хэллоуин 2022, а я почему-то написал 2024. Наверное из-за пасхального ларца выше. Емае
     [32] = {'Ларец мусорщика',                      'Ларец мусорщика',                      'larec_garbage_collector',         imgui.new.int(imguiJson.larec_garbage_collector_price),   'Цена ларца мусорщика:',                        '##set_price_larec_gargabe_collector',    imguiJson.larec_garbage_collector_price,    imguiJson.total_boxes_status,                   imguiJson.larec_garbage_collector_status_parse_price, 8552,     15},
     [33] = {'Ларец петуха',                         'Ларец петуха',                         'larec_cock',                      imgui.new.int(imguiJson.larec_cock_price),                'Цена ларца петуха:',                           '##set_price_larec_cock',                 imguiJson.larec_cock_price,                 imguiJson.total_boxes_status,                   imguiJson.larec_cock_status_parse_price,              6234,     10},
-    [34] = {'Ларец Vice City',                      'Ларец Vice City',                      'larec_vc',                        imgui.new.int(imguiJson.larec_vc_price),                  'Цена ларца Vice City:',                        '##set_price_larec_vc',                   imguiJson.larec_vc_price,                   imguiJson.total_boxes_status,                   imguiJson.larec_vc_status_parse_price,                5323,     25},
+    [34] = {'Ларец Vice City',                      'Ларец Vice City',                      'larec_vc',                        imgui.new.int(imguiJson.larec_vc_price),                  'Цена ларца Vice City:',                        '##set_price_larec_vc',                   imguiJson.larec_vc_price,                   imguiJson.total_boxes_status,                   imguiJson.larec_vc_status_parse_price,                5323,     5},
     [35] = {'Биткоин',                              'Биткоин',                              'bitcoin',                         imgui.new.int(imguiJson.bitcoin_price[0]),                'Цена биткоина:',                               '##set_price_bitcoin',                    imguiJson.bitcoin_price,                    imguiJson.kosa_marci_bitcoin_status,            _,                                                    _,        _},
     [36] = {'Вайс сити денежки',                    'Вайс сити денежки',                    'vc',                              imgui.new.int(imguiJson.vc),                              'Курс вайс сити денежек:',                      '##set_price_vc_money',                   imguiJson.vc,                               _,                                              _,                                                    _,        _},
-    [37] = {'Подарок',                              'Подарок (предмет)',                    'podarok',                         imgui.new.int(imguiJson.podarok_price),                   'Цена подарка:',                                '##set_price_podarok',                    imguiJson.podarok_price,                    imguiJson.podarki_acs_ohr_status,               imguiJson.podarok_status_parse_price,                 552,      100},
-    [38] = {'Рыбная монета',                        'Рыбная монета (предмет)',              'ribmoneta',                       imgui.new.int(imguiJson.ribmoneta_price),                 'Цена рыбной монеты:',                          '##set_price_ribmoneta',                  imguiJson.ribmoneta_price,                  imguiJson.ribmoneta_acs_ohr_status,             imguiJson.ribmoneta_status_parse_price,               4238,     25},
-    [39] = {'Монета миража',                        'Монета миража (предмет)',              'moneta_mirage',                   imgui.new.int(imguiJson.moneta_mirage_price),             'Цена монеты миража:',                          '##set_price_moneta_mirage',              imguiJson.moneta_mirage_price,              imguiJson.mirage_status,                        imguiJson.moneta_mirage_status_parse_price,           8094,     25},
+    [37] = {'Подарок',                              'Подарок (предмет)',                    'podarok',                         imgui.new.int(imguiJson.podarok_price),                   'Цена подарка:',                                '##set_price_podarok',                    imguiJson.podarok_price,                    imguiJson.podarki_acs_ohr_status,               imguiJson.podarok_status_parse_price,                 552,      50},
+    [38] = {'Рыбная монета',                        'Рыбная монета (предмет)',              'ribmoneta',                       imgui.new.int(imguiJson.ribmoneta_price),                 'Цена рыбной монеты:',                          '##set_price_ribmoneta',                  imguiJson.ribmoneta_price,                  imguiJson.ribmoneta_acs_ohr_status,             imguiJson.ribmoneta_status_parse_price,               4238,     10},
+    [39] = {'Монета миража',                        'Монета миража (предмет)',              'moneta_mirage',                   imgui.new.int(imguiJson.moneta_mirage_price),             'Цена монеты миража:',                          '##set_price_moneta_mirage',              imguiJson.moneta_mirage_price,              imguiJson.mirage_status,                        imguiJson.moneta_mirage_status_parse_price,           8094,     10},
     [40] = {'Маркет',                               'Маркет (Цена за объяву)',              'market',                          imgui.new.int(imguiJson.market_price),                    'Курс маркетолога за 1 рекламу:',               '##set_price_marketolog',                 imguiJson.market_price,                     imguiJson.market_status,                        _,                                                    _,        _},
     [41] = {'Аз',                                   'AZ',                                   'az',                              imgui.new.int(imguiJson.az),                              'Курс AZ:',                                     '##set_price_az',                         imguiJson.az,                               _,                                              _,                                                    _,        _},
     [42] = {'Обрез',                                'Оружие Обрезы',                        'obrez',                           imgui.new.int(imguiJson.obrez_price),                     'Цена обреза:',                                 '##set_price_obrez',                      imguiJson.obrez_price,                      imguiJson.obrez_status,                         imguiJson.obrez_status_parse_price,                   5829,     50},
-    [43] = {'Осколок Истока',                       'Осколок Истока',                       'primogem',                        imgui.new.int(imguiJson.primogem_price),                  'Цена Осколка Истока:',                         '##set_price_primogem',                   imguiJson.primogem_price,                   imguiJson.quest_business_status,                imguiJson.primogem_status_parse_price,                8300,     30},
-    [44] = {'Осколок NFT Контейнера',               'Осколок NFT Контейнера',               'oskolok_nft',                     imgui.new.int(imguiJson.oskolok_nft_price),               'Цена Осколка NFT:',                            '##set_price_oskolok_nft',                imguiJson.oskolok_nft_price,                imguiJson.altushka_status,                      imguiJson.oskolok_nft_status_parse_price,             8089,     3},
-    [45] = {'Micro Tec',                            'Micro Tec',                            'micro_tec',                       imgui.new.int(imguiJson.micro_tec_price),                 'Цена Micro Tec:',                              '##set_price_micro_tec',                  imguiJson.micro_tec_price,                  imguiJson.micro_tec_status,                     imguiJson.micro_tec_status_parse_price,               6368,     250},
+    [43] = {'Осколок Истока',                       'Осколок Истока',                       'primogem',                        imgui.new.int(imguiJson.primogem_price),                  'Цена Осколка Истока:',                         '##set_price_primogem',                   imguiJson.primogem_price,                   imguiJson.quest_business_status,                imguiJson.primogem_status_parse_price,                8300,     10},
+    [44] = {'Осколок NFT Контейнера',               'Осколок NFT Контейнера',               'oskolok_nft',                     imgui.new.int(imguiJson.oskolok_nft_price),               'Цена Осколка NFT:',                            '##set_price_oskolok_nft',                imguiJson.oskolok_nft_price,                imguiJson.altushka_status,                      imguiJson.oskolok_nft_status_parse_price,             8089,     2},
+    [45] = {'Micro Tec',                            'Micro Tec',                            'micro_tec',                       imgui.new.int(imguiJson.micro_tec_price),                 'Цена Micro Tec:',                              '##set_price_micro_tec',                  imguiJson.micro_tec_price,                  imguiJson.micro_tec_status,                     imguiJson.micro_tec_status_parse_price,               6368,     100},
     [46] = {_,                                      'Золотая рулетка №2 (NFT)',             'gold_r_second',                   imgui.new.int(imguiJson.gold_r_price),                     _,                                              _,                                       imguiJson.gold_r_price,                     imguiJson.nft_kont_status,                      _,                                                    _,        _}, -- Уже есть, незачем парсить
     [47] = {'Бензопила на спину',                   'Бензопила на спину',                   'benzopila_na_spiny',              imgui.new.int(imguiJson.benzopila_price),                 'Цена а/с "Бензопила на спину:"',               '##set_price_benzopila_na_spiny',         imguiJson.benzopila_price,                  imguiJson.nft_kont_status,                      imguiJson.benzopila_na_spiny_status_parse_price,      779,      1},
-    [48] = {_,                                      'Серебряная рулетка №2 (NFT)',          'silver_r_second',                 imgui.new.int(imguiJson.silver_r_price),                   _,                                              _,                                       imguiJson.silver_r_price,                   imguiJson.nft_kont_status,                      _,                                                    _,        _}, -- Уже есть, незачем парсить
+    [48] = {'Серебряная рулетка',                   'Серебряная рулетка №2 (NFT)',          'silver_r_second',                 imgui.new.int(imguiJson.silver_r_price),                   _,                                              _,                                       imguiJson.silver_r_price,                   imguiJson.nft_kont_status,                      _,                                                    _,        _}, -- Уже есть, незачем парсить
     [49] = {'Серебро',                              'Серебро',                              'silver',                          imgui.new.int(imguiJson.silver_price),                    'Цена ресурса "Серебро:"',                      '##set_price_silver',                     imguiJson.silver_price,                     imguiJson.nft_kont_status,                      imguiJson.silver_status_parse_price,                  599,      30},
     [50] = {'Золото',                               'Золото',                               'gold',                            imgui.new.int(imguiJson.gold_price),                      'Цена ресурса "Золото:"',                       '##set_price_gold',                       imguiJson.gold_price,                       imguiJson.nft_kont_status,                      imguiJson.gold_status_parse_price,                    600,      30},
     [51] = {'Осколок предмета Заточка',             'Осколок предмета заточка +13',         'oskolok_zatochka_nft',            imgui.new.int(imguiJson.oskolok_zatochka_nft_price),      'Цена "Осколок предмета заточка +13":',         '##set_price_oskolok_zatochka_nft',       imguiJson.oskolok_zatochka_nft_price,       imguiJson.nft_kont_status,                      imguiJson.oskolok_zatochka_nft_status_parse_price,    6174,     1},
@@ -429,8 +434,8 @@ local item = {
     [54] = {'Сертификат Cheetah',                   'Сертификат т/с "Cheetah"',             'nft_sert_cheetah',                imgui.new.int(imguiJson.nft_sert_cheetah_price),          'Цена сертификата т/с "Cheetah":',              '##set_price_nft_sert_cheetah',           imguiJson.nft_sert_cheetah_price,           imguiJson.nft_kont_status,                      _,                                                    _,        _},
     [55] = {'Сертификат Картинг',                   'Сертификат т/с "Картинг"',             'nft_sert_carting',                imgui.new.int(imguiJson.nft_sert_carting_price),          'Цена сертификата т/с "Картинг":',              '##set_price_nft_sert_carting',           imguiJson.nft_sert_carting_price,           imguiJson.nft_kont_status,                      _,                                                    _,        _},
     [56] = {'Сертификат Phoenix',                   'Сертификат т/с "Phoenix"',             'nft_sert_phoenix',                imgui.new.int(imguiJson.nft_sert_phoenix_price),          'Цена сертификата т/с "Phoenix:"',              '##set_price_nft_sert_phoenix',           imguiJson.nft_sert_phoenix_price,           imguiJson.nft_kont_status,                      _,                                                    _,        _},
-    [57] = {'Набор реставрации для акссесуара',     'Набор реставрации для акссесуара',     'nft_restavracia_acs',             imgui.new.int(imguiJson.nft_restavracia_acs_price),       'Цена набора реставрации для аксессуаров":',    '##set_price_nft_restavracia_acs',        imguiJson.nft_restavracia_acs_price,        imguiJson.nft_kont_status,                      imguiJson.nft_restavracia_acs_status_parse_price,     9322,     3},
-    [58] = {'Пачка с деньгами',                     'NFT-Вирты',                            'nft_sa_money',                    _,                                                         _,                                              _,                                       _,                                          _,                                              _,                                                    _,        _}
+    [57] = {'Набор реставрации для акссесуара',     'Набор реставрации для акссесуара',     'nft_restavracia_acs',             imgui.new.int(imguiJson.nft_restavracia_acs_price),       'Цена набора реставрации для аксессуаров":',    '##set_price_nft_restavracia_acs',        imguiJson.nft_restavracia_acs_price,        imguiJson.nft_kont_status,                      imguiJson.nft_restavracia_acs_status_parse_price,     9322,     2},
+    [58] = {'Пачка с деньгами',                     'NFT-Вирты',                            'nft_sa_money',                    imgui.new.bool(false),                                     _,                                              _,                                       _,                                          _,                                              _,                                                    _,        _}
 }
 
 local menu = {
@@ -442,10 +447,10 @@ local menu = {
     [6] = {'Мидас',                          'midas3slot',                _,                                 1,                                            imguiJson.midas3sloti_status,        'Показывать а/с "Мидас"'},
     [7] = {'Коса марси',                     'kosa_marci',                _,                                 0,                                            imguiJson.kosa_marci_status,         'Показывать а/с "Коса Марси"'},
     [8] = {'Леший',                          'leshiy',                    _,                                 2,                                            imguiJson.leshiy_status,             'Показывать о/х "Леший"'},
-    [9] = {'Маска муэрты',                   'podarki_acs_ohr',           _,                                 5,                                            imguiJson.podarki_acs_ohr_status,    'Показывать а/с "Маска Муэрты" (ОХР)'},
-    [10] = {'Анимированный огненный глаз',   'az_acs_ohr',                _,                                 1,                                            imguiJson.az_acs_ohr_status,         'Показывать а/с "Анимированный огненный глаз" (ОХР)'},
-    [11] = {'Анимированные часы на спину',   'ribmoneta_acs_ohr',         _,                                 1,                                            imguiJson.ribmoneta_acs_ohr_status,  'Показывать а/с "Анимированные часы на спину" (ОХР)'},
-    [12] = {'Хуйня для денег вс',            'vc_acs_ohr',                _,                                 250,                                          imguiJson.vc_acs_ohr_status,         'Показывать а/с "Хуйня для денег вс" (ОХР)'},
+    [9] = {'Маска муэрты',                   'podarki_acs_ohr',           _,                                 5,                                            imguiJson.podarki_acs_ohr_status,    'Показывать а/с "Маска Муэрты" (ОХР - Дает подарки)'},
+    [10] = {'Анимированный огненный глаз',   'az_acs_ohr',                _,                                 1,                                            imguiJson.az_acs_ohr_status,         'Показывать а/с "Анимированный огненный глаз" (ОХР - Дает АЗ-Коины)'},
+    [11] = {'Анимированные часы на спину',   'ribmoneta_acs_ohr',         _,                                 1,                                            imguiJson.ribmoneta_acs_ohr_status,  'Показывать а/с "Анимированные часы на спину" (ОХР - Дает рыбные монеты)'},
+    [12] = {'Шипованный обруч',              'vc_acs_ohr',                _,                                 250,                                          imguiJson.vc_acs_ohr_status,         'Показывать а/с "Шипованный обруч" (ОХР  - Дает ВС коины)'},
     [13] = {'Мираж',                         'mirage',                   'moneta_mirage',                    0,                                            imguiJson.mirage_status,             'Показывать М/П "Мираж"'},
     [14] = {'Выгодная рассрочка',            'rassrochka',                _,                                 5,                                            imguiJson.rassrochka_status,         'Показывать улучшение "Выгодная Рассрочка"'},
     [15] = {'Премиум Вип',                   'premiumvip',                _,                                 ((2) * (imguiJson.current_payday_multiplier)),imguiJson.premiumvip_status,         'Показывать Премиум вип'}, -- default 4 element = 2
@@ -459,8 +464,8 @@ local menu = {
     [23] = {'Финка с территорий (ЛВ)',       'finka_lv_territory',        _,                                 0,                                            imguiJson.finka_lv_territory_status, 'Показывать финку с территорий (ЛВ)'},
     [24] = {'Альтушка',                      'altushka',                  _,                                 0,                                            imguiJson.altushka_status,           'Показывать информацию о Альтушке'},
     [25] = {'Космическое сердце',            'space_heart',               _,                                 0,                                            imguiJson.space_heart_status,        'Показывать информацию о а/с "Космическое сердце"'},
-    [26] = {'Micro Tec',                     'micro_tec',                 _,                                 0,                                            imguiJson.micro_tec_status,          'Показывать информацию о Micro Tec (Теки охранников)'},
-    [27] = {'НФТ-Контейнеры',                'nft_kont',                  _,                                 0,                                            imguiJson.nft_kont_status,           'Показывать информацию о НФТ-Контейнерах'}
+    [26] = {'Micro Tec',                     'micro_tec',                 _,                                 0,                                            imguiJson.micro_tec_status,          'Показывать информацию о Micro Tec (Теки охранников, характеристика)'},
+    [27] = {'НФТ-Контейнеры',                'nft_kont',                  _,                                 0,                                            imguiJson.nft_kont_status,           'Показывать открытия НФТ-Контейнеров'}
 }
 
 function getMenuData(period, dateKey)
@@ -482,10 +487,8 @@ function getMenuData(period, dateKey)
     end
 
     for i = 46, 58 do
-        if item[i] and value[item[i][3]] and not i == 58 then
-            value.total_nft = value.total_nft + (value[item[i][3]] * item[i][4][0])
-        elseif item[i] and value[item[i][3]] and i == 58 then
-            value.total_nft = value.total_nft + (value[item[i][3]])
+        if item[i] and value[item[i][3]] then
+            value.total_nft = value.total_nft + (value[item[i][3]] * (item[i][4][0] or 1))
         end
     end
 
@@ -501,7 +504,7 @@ function getMenuData(period, dateKey)
     [9] = {'Маска Муэрты (ОХР): {b9ff00}' .. (number_separator((value.podarki_acs_ohr or 0) * (item[37][4][0] or 0))) .. '$', 'Показывать а/с "Маска Муэрты" (ОХР)', ((value.podarki_acs_ohr or 0) * (item[37][4][0] or 0)), 'SA'},
     [10] = {'Огненный глаз (ОХР): ' .. (number_separator(value.az_acs_ohr or 0)) .. ' {FFD700}AZ', 'Показывать а/с "Анимированный огненный глаз" (ОХР)', value.az_acs_ohr or 0, 'AZ'},
     [11] = {'Анимированные часы (ОХР): {b9ff00}' .. (number_separator((value.ribmoneta_acs_ohr or 0) * (item[38][4][0] or 0))) .. '$', 'Показывать а/с "Анимированные часы на спину" (ОХР)', ((value.ribmoneta_acs_ohr or 0) * (item[38][4][0] or 0)), 'SA'},
-    [12] = {'Хуйня для денег вс (ОХР): {b9ff00}' .. (number_separator((value.vc_acs_ohr or 0) * (item[36][4][0] or 0))) .. '$', 'Показывать а/с "Хуйня для денег вс" (ОХР)', ((value.vc_acs_ohr or 0) * (item[36][4][0] or 0)), 'SA'},
+    [12] = {'Шипованный обруч (ОХР): {b9ff00}' .. (number_separator((value.vc_acs_ohr or 0) * (item[36][4][0] or 0))) .. '$', 'Показывать а/с "Хуйня для денег вс" (ОХР)', ((value.vc_acs_ohr or 0) * (item[36][4][0] or 0)), 'SA'},
     [13] = {'Мираж: ' .. (number_separator(value.mirage or 0)) .. ' {FFD700}AZ |{FFFFFF} Монеты Миража: {b9ff00}' .. (number_separator((value[item[39][3]] or 0) * (item[39][4][0] or 0))) .. '$ {edff21}(' .. (value[item[39][3]] or 0) .. ')', 'Показывать М/П "Мираж"', ((value.moneta_mirage or 0) * (item[39][4][0])), (value.mirage or 0), 'SA and AZ'},
     [14] = {'Выгодная рассрочка: ' .. (value.rassrochka or 0) .. ' {FFD700}AZ', 'Показывать улучшение "Выгодная Рассрочка"', value.rassrochka or 0, 'AZ'},
     [15] = {'Премиум Вип: ' .. (value.premiumvip or 0) .. ' {FFD700}AZ', 'Показывать Премиум вип', value.premiumvip or 0, 'AZ'},
@@ -529,7 +532,6 @@ local getBusinessDialog = false
 local user_nickname = ''
 local item_list = {
     u8('Не изменять цены вообще никогда'), u8('Менять цены с помощью маркетплейса каждый день'), u8('Менять цены с помощью маркетплейса каждую неделю'), u8('Менять цены с помощью маркетплейса каждый месяц'),
-    u8('Менять цены с помощью премиум-таблицы каждый день'), u8('Менять цены с помощью премиум-таблицы каждую неделю'), u8('Менять цены с помощью премиум-таблицы каждый месяц')
 }
 local ImItems = imgui.new['const char*'][#item_list](item_list)
 
@@ -538,6 +540,8 @@ local market_data = nil
 local AlreadyUsedMarket = false
 local baseTime = nil
 local currentTime = nil
+local queue = {}
+local isUsedAutoParse = false
 
 function add_loot(loot, value)
     local currentDate = os.date('%d.%m.%y')
@@ -548,9 +552,11 @@ function add_loot(loot, value)
         if imguiJson.combo_test[0] == 1 then
             for i = 1, #item do
                 if item[i][9] then
-                    ParseItems(item[i][1], item[i][11])
+                    table.insert(queue, {some_item = item[i][1], some_minimal_count = item[i][11], some_element = i})
+                    isUsedAutoParse = true
                 end
             end
+            parseItemsQueue()
         end
     end
     if FarmLog.weeks[currentWeek] == nil then
@@ -558,9 +564,11 @@ function add_loot(loot, value)
         if imguiJson.combo_test[0] == 2 then
             for i = 1, #item do
                 if item[i][9] then
-                    ParseItems(item[i][1], item[i][11])
+                    table.insert(queue, {some_item = item[i][1], some_minimal_count = item[i][11], some_element = i})
+                    isUsedAutoParse = true
                 end
             end
+            parseItemsQueue()
         end
     end
     if FarmLog.months[currentMonth] == nil then
@@ -568,9 +576,11 @@ function add_loot(loot, value)
         if imguiJson.combo_test[0] == 3 then
             for i = 1, #item do
                 if item[i][9] then
-                    ParseItems(item[i][1], item[i][11])
+                    table.insert(queue, {some_item = item[i][1], some_minimal_count = item[i][11], some_element = i})
+                    isUsedAutoParse = true
                 end
             end
+            parseItemsQueue()
         end
     end
 
@@ -578,7 +588,6 @@ function add_loot(loot, value)
     FarmLog.weeks[currentWeek][loot] = FarmLog.weeks[currentWeek][loot] + value
     FarmLog.months[currentMonth][loot] = FarmLog.months[currentMonth][loot] + value
     FarmLog()
-    imguiJson() -- Для ParseItems
 end
 
 function sampEvents.onServerMessage(color, message)
@@ -613,21 +622,30 @@ function sampEvents.onServerMessage(color, message)
     if message:find('^%[Операция Мираж%] {......}Поздравляем! Вы заняли {......}#%d+ место{......}! Заработав: {......}(%d+) AZ Coins{......}.') and not message:find('%[%d+%]') then
         if menu[13][5][0] then -- Статус: Неизвестно ?
             local mirage_az = message:match('^%[Операция Мираж%] {......}Поздравляем! Вы заняли {......}#%d+ место{......}! Заработав: {......}(%d+) AZ Coins{......}.')
-            add_loot(menu[13][2], mirage_az) -- Мираж
+            if mirage_az then
+                add_loot(menu[13][2], mirage_az) -- Мираж
+                mirage_az = nil
+            end
         end
     end
 
     if message:find('^Общая заработная плата: %$(%d+[.,]?%d+[.,]?%d+)') and not message:find('%[%d+%]') then -- Зарплата
         if menu[3][5][0] then -- Статус: Считает успешно ?
             local zarplata_sa = message:match('Общая заработная плата: %$(%d+[.,]?%d+[.,]?%d+)') -- Общая заработная плата: $2,107,850
-            add_loot(menu[3][2], removeSeparator(zarplata_sa)) -- Зарплата
+            if zarplata_sa then
+                add_loot(menu[3][2], removeSeparator(zarplata_sa)) -- Зарплата
+                zarplata_sa = nil
+            end
         end
     end
 
     if message:find('^Текущая сумма на депозите: %$(%d*[.,]?%d+[.,]?%d+) %{......%}(.*)%$(%d*[.,]?%d+[.,]?%d+)') and not message:find('%[%d+%]') then -- Депозит
         if menu[4][5][0] then -- Статус: Считает успешно ?
             local _, deposit_i2 = message:match('(.*)%$(%d+[.,]?%d+[.,]?%d+)')
-            add_loot(menu[4][2], removeSeparator(deposit_i2)) -- Депозит
+            if deposit_i2 then
+                add_loot(menu[4][2], removeSeparator(deposit_i2)) -- Депозит
+                deposit_i2 = nil
+            end
         end
     end
 
@@ -639,7 +657,7 @@ function sampEvents.onServerMessage(color, message)
 
     if message:find('^%[Информация%] {......}Вы использовали сундук с рулетками и получили') and not message:find('%[%d+%]') then -- Подсчет всех рулеток (Бронзовая, серебряная, золотая, платиновая). Сундуки: Обычный (при регистрации), Донатный
         local drop_starter_and_donate_boxes = message:match('Вы использовали сундук с рулетками и получили (.+)!') -- Статус: Неизвестно ?
-        if menu[18][5][0] then
+        if menu[18][5][0] and drop_starter_and_donate_boxes then
             for i in pairs(item) do
                 if item[i][2] == drop_starter_and_donate_boxes then
                     add_loot(item[i][3], 1)
@@ -651,7 +669,7 @@ function sampEvents.onServerMessage(color, message)
 
     if message:find('^%[Информация%] {......}Вы использовали платиновый сундук с рулетками и получили') and not message:find('%[%d+%]') then -- Подсчет всех рулеток (Бронзовая, серебряная, золотая, платиновая). Сундуки: Платиновый
         local drop_platinum_box = message:match('Вы использовали платиновый сундук с рулетками и получили (.+)!') -- Статус: Неизвестно ?
-        if menu[18][5][0] then
+        if menu[18][5][0] and drop_platinum_box then
             for i in pairs(item) do
                 if item[i][2] == drop_platinum_box then
                     add_loot(item[i][3], 1)
@@ -663,7 +681,7 @@ function sampEvents.onServerMessage(color, message)
 
     if message:find('%[Информация%] {......}Вы использовали тайник Илона Маска и получили') and not message:find('%[%d+%]') then -- Статус: Неизвестно ?
         local drop_elon_musk_box = message:match('Вы использовали тайник Илона Маска и получили (.+)!')
-        if menu[19][5][0] then
+        if menu[19][5][0] and drop_elon_musk_box then
             for i in pairs(item) do
                 if item[i][2] == drop_elon_musk_box then
                     add_loot(item[i][3], 1)
@@ -678,13 +696,17 @@ function sampEvents.onServerMessage(color, message)
         local drop_ls_vc_1_box, drop_ls_vc_2_box = message:match('%[Информация%] {......}Получено: (.+) и (.+)!$')
         if menu[19][5][0] then
             for i in ipairs(item) do
-                if item[i][2] == drop_ls_vc_1_box then
-                    add_loot(item[i][3], 1)
-                    drop_ls_vc_1_box = nil
+                if drop_ls_vc_1_box then
+                    if item[i][2] == drop_ls_vc_1_box then
+                        add_loot(item[i][3], 1)
+                        drop_ls_vc_1_box = nil
+                    end
                 end
-                if item[i][2] == drop_ls_vc_2_box then
-                    add_loot(item[i][3], 1)
-                    drop_ls_vc_2_box = nil
+                if drop_ls_vc_2_box then
+                    if item[i][2] == drop_ls_vc_2_box then
+                        add_loot(item[i][3], 1)
+                        drop_ls_vc_2_box = nil
+                    end
                 end
             end
         end
@@ -692,7 +714,7 @@ function sampEvents.onServerMessage(color, message)
 
     if message:find('^Вы открыли Тайник Собирателя!') and not message:find('%[%d+%]') then
         local drop_sobiratel_box = message:match('Получено: (.+)!')
-        if menu[19][5][0] then
+        if menu[19][5][0] and drop_sobiratel_box then
             for i in pairs(item) do
                 if item[i][2] == drop_sobiratel_box then
                     add_loot(item[i][3], 1)
@@ -705,7 +727,10 @@ function sampEvents.onServerMessage(color, message)
     if message:find('^%[Операция Мираж%] {......}Вы заработали {......}%d+ монет миража') and not message:find('%[%d+%]') then
         if menu[13][5][0] then
             local moneta_mirage_local = message:match('Вы заработали {FFD700}(%d+) монет миража')
-            add_loot(item[39][3], moneta_mirage_local or 0) -- Монета миража
+            if moneta_mirage_local then
+                add_loot(item[39][3], moneta_mirage_local or 0) -- Монета миража
+                moneta_mirage_local = nil
+            end
         end
     end 
 
@@ -720,24 +745,32 @@ function sampEvents.onServerMessage(color, message)
             local finka_lv_territory_money = message:match('деньги: %$(%d+[.,]?%d+[.,]?%d+)')
             finka_lv_territory_money = removeSeparator(finka_lv_territory_money)
             print(removeSeparator(finka_lv_territory_money))
-            add_loot(menu[23][2], removeSeparator(finka_lv_territory_money))
+            if finka_lv_territory_money then
+                add_loot(menu[23][2], removeSeparator(finka_lv_territory_money))
+                finka_lv_territory_money = nil
+            end
         end
     end
 
     if message:find('^Вы получили (.-)%$(%d+[.,]?%d+[.,]?%d+) от хар%-ки надетого аксессуара Космическое сердце %(выдается каждые 30 минут%)$') and not message:find('%[%d+%]') then
         if menu[25][5][0] then
             local _, space_heart_money = message:match('Вы получили (.-)%$(%d+[.,]?%d+[.,]?%d+)')
-            add_loot(menu[25][2], removeSeparator(space_heart_money))
+            if space_heart_money then
+                add_loot(menu[25][2], removeSeparator(space_heart_money))
+                space_heart_money = nil
+            end
         end
     end
 
     if message:find('Вы получили (.*) от хар%-ки надетого аксессуара Космическое сердце %(выдается каждые 30 минут%)') and not message:find('%[%d+%]') then
         if menu[25][5][0] then
             local space_heart_larec = message:match('Вы получили (.*) от хар%-ки надетого аксессуара Космическое сердце %(выдается каждые 30 минут%)')
-            for i in pairs(item) do
-                if item[i][2] == space_heart_larec then
-                    add_loot(menu[25][2], item[i][7][0])
-                    space_heart_larec = nil
+            if space_heart_larec then
+                for i in pairs(item) do
+                    if item[i][2] == space_heart_larec then
+                        add_loot(menu[25][2], item[i][7][0])
+                        space_heart_larec = nil
+                    end
                 end
             end
         end
@@ -762,11 +795,13 @@ function sampEvents.onShowDialog(id, style, title, button1, button2, text) -- Дл
     if text:find('{ffffff}Баланс бизнеса%: {ffff00}%$(%d+[.,]?%d+[.,]?%d+)') and getBusinessDialog then
         local business_money = text:match('{ffffff}Баланс бизнеса%: {ffff00}%$(%d+[.,]?%d+[.,]?%d+)')
         business_money = removeSeparator(business_money)
-        if (tonumber(business_money)) ~= nil or (tonumber(business_money)) ~= 0 then
-            sampSendDialogResponse(id, 1, 0, tonumber(business_money) or 0)
-            add_loot(menu[22][2], tonumber(business_money) or 0) 
-            getBusinessDialog = false
-            return false
+        if business_money then
+            if (tonumber(business_money)) ~= nil or (tonumber(business_money)) ~= 0 then
+                sampSendDialogResponse(id, 1, 0, tonumber(business_money) or 0)
+                add_loot(menu[22][2], tonumber(business_money) or 0) 
+                getBusinessDialog = false
+                return false
+            end
         end
     end
 end
@@ -1001,6 +1036,7 @@ local newFrame = imgui.OnFrame(
                         imgui.Separator()
                     end
                 end
+
                 if imgui.Button(u8'Закрыть', imgui.ImVec2(imgui.GetWindowWidth() - 30, 30)) then
                     imgui.CloseCurrentPopup()
                 end
@@ -1049,8 +1085,21 @@ local newFrame = imgui.OnFrame(
                             imgui.SameLine(30)
                             imgui.Question('Заменяет старую кнопку "Пополнить" на "Забрать все". Благодаря новой кнопке не нужно вручную в диалоге вводить всю финку, он сам ее соберет при нажатии')
 
+                            if imgui.Checkbox(u8('Добавлять полученные AZ-Coins к общему подсчету в виртах {НЕ РАБОТАЕТ}'), imguiJson.togetherSAandAZ) then
+                                imguiJson()
+                            end
+                            imgui.SameLine(30)
+                            imgui.Question('Если включено: при получении AZ-Coins, будет прибавлять помноженный результат к общему подсчету. Если выключено: не будет')
+
+                            if imgui.Checkbox(u8('Добавлять перевод курса для предметов исключительно с AZ {НЕ РАБОТАЕТ}'), imguiJson.showDopTextForAz) then
+                                imguiJson()
+                            end
+                            imgui.SameLine(30)
+                            imgui.Question('Если включено: Для предметов, которые обрабатывают исключительно AZ, будет показываться текст с помноженным курсом. Если выключено: не будет')
+
                             imgui.EndTabItem()
                         end
+
                         if imgui.BeginTabItem(u8'Выбор предметов') then -- первая вкладка
 
                             for i, data in ipairs(menu) do
@@ -1102,7 +1151,27 @@ local newFrame = imgui.OnFrame(
                                 end
                             end
                             imgui.EndChild()
-                            if imgui.InputInt(u8('##priceInput'), FarmData.input_price, 0, 0) then
+                            imgui.SetNextItemWidth(250)
+                            --imgui.SetCursorPosX(60)
+                            local priceInput = imgui.InputInt(u8('<- Цена ##priceInput'), FarmData.input_price, 0, 0)
+                            imgui.SameLine()
+                            imgui.SetCursorPosX(360)
+                            if imgui.Button(u8('Вручную поменять цену выбранным предметам')) then
+                                FarmNormMSG('Начинаем менять цены!')
+                                for i = 1, #item do
+                                    if item[i][9] then
+                                        sampAddChatMessage('Вношу в таблицу: ' .. item[i][1], -1)
+                                        table.insert(queue, {some_item = item[i][1], some_minimal_count = item[i][11], some_element = i})
+                                    end
+                                end
+                                parseItemsQueue()
+                            end
+                            if imgui.IsItemHovered() then
+                                imgui.BeginTooltip()
+                                    imgui.Text(u8('Не используйте кнопку часто, иначе ваш айпи забанит'))
+                                imgui.EndTooltip()
+                            end
+                            if priceInput then
                                 if not (FarmData.current_editing == '') then
 
                                     for _, array_data in pairs(item) do
@@ -1117,8 +1186,9 @@ local newFrame = imgui.OnFrame(
 
                             imgui.EndTabItem()
                         end
+
                         if imgui.BeginTabItem(u8'Arz-Market вкладка') then -- третья вкладка
-                            imgui.Text(u8('Это вкладка для парсинга данных со статистики арз-маркета\nВАЖНЫЕ ЗАМЕЧАНИЯ:\n\n1) При использовании премиум-таблицы у вас должна быть активная подписка на маркет.\nЕсли ее нет - пользуйтесь маркетплейсом\n\n2) Если вы включили какую-либо опцию, тогда во вкладке "Установка цен", отметьте...\n...необходимые предметы для изменений'))
+                            imgui.Text(u8('Это вкладка для парсинга данных со статистики арз-маркета\nВНИМАНИЕ: Если вы включили какую-либо опцию, тогда во вкладке "Установка цен", отметьте...\n...необходимые предметы для изменений'))
                             imgui.SetNextItemWidth(500)
                             if imgui.Combo(u8'Список', imguiJson.combo_test, ImItems, #item_list) then
                                 imguiJson()
@@ -1128,7 +1198,9 @@ local newFrame = imgui.OnFrame(
                         
 
                         imgui.Separator()
-                        if imgui.Button(u8'Закрыть', imgui.ImVec2(562, 30)) then
+                        --if imgui.Button(u8'Закрыть', imgui.ImVec2(562, 30)) then
+                        imgui.SetCursorPosX(60)
+                        if imgui.Button(u8'Закрыть', imgui.ImVec2(570, 30)) then
                             imgui.CloseCurrentPopup()
                         end
                     end
@@ -1196,7 +1268,11 @@ function main()
     end
 
     sampRegisterChatCommand('flog', function()
-        renderWindow[0] = not renderWindow[0]
+        if carbStatus == true and shriftStatus == true then
+            renderWindow[0] = not renderWindow[0]
+        else
+            FarmErrorMSG('Открытие интерфейса невозможно. Скорее всего, у вас не установлен шрифт/библиотека. Скачивание должно автоматически начаться')
+        end
     end)
 
     while true do
@@ -1331,239 +1407,20 @@ function autoupdate(jsonUrl, threadParam)
     end)
 end
 
-function ParseItems(some_item, some_minimal_count, some_element)
+function ParseItems(some_item, some_minimal_count, some_element, callback)
     count = 0
     if imguiJson.combo_test[0] == 0 then
         return
     end
 
-    if imguiJson.combo_test[0] <= 3 then
+    if not AlreadyUsedMarket then
 
-        if not AlreadyUsedMarket then
+        async_http_request:create('json', 'GET', "https://api.arz.market/api/getSelectedMarketplace/-1")
+        :setCallback(function (status_code, res, err)
+            if status_code == 200 or status_code == 304 then
 
-            async_http_request:create('json', 'GET', "https://api.arz.market/api/getSelectedMarketplace/-1")
-            :setCallback(function (status_code, res, err)
-                if status_code == 200 or status_code == 304 then
+                market_data = decodeJson(res)
 
-                    market_data = decodeJson(res)
-
-                    if market_data and #market_data > 0 then
-
-                        local normal_prices = {}
-                        local vice_prices = {}
-                        local used_nicknames = {}
-                        
-                        for _, market_info in ipairs(market_data) do
-                            local seller_nickname = market_info.username
-                            
-                            -- Пропускаем, если никнейм уже использован
-                            if used_nicknames[seller_nickname] then
-                                goto continue
-                            end
-
-                            -- Определяем тип сервера по никнейму
-                            local is_vice_city = seller_nickname:match("^%[%d+%]") ~= nil
-                            
-                            if market_info.items_sell and #market_info.items_sell > 1 then
-                                count = count + 1
-                                for j, market_item_id in ipairs(market_info.items_sell) do
-                                    local market_item_name = getItemNameById(market_item_id)
-
-                                    if market_item_name:lower():find(some_item:lower()) then
-                                        local total_count_item = market_info.count_sell and market_info.count_sell[j]
-                                        --print(j .. ' | ' .. total_count_item)
-                                        if total_count_item >= some_minimal_count then
-                                            local price = market_info.price_sell and market_info.price_sell[j]
-                                            print(price)
-
-                                            if price then
-                                                used_nicknames[seller_nickname] = true
-                                            
-                                                if is_vice_city then
-                                                    table.insert(vice_prices, price)
-                                                else
-                                                    table.insert(normal_prices, price)
-                                                end
-                                                
-                                                break  -- Выходим после первого найденного предмета у продавца
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                            ::continue::
-                        end
-                        
-                        local total_collected = #normal_prices + (#vice_prices)
-                        
-                        if total_collected >= 3 then
-
-                            local normal_prices_with_mult = {}
-                            for _, price in ipairs(normal_prices) do
-                                table.insert(normal_prices_with_mult, price)
-                            end
-                            
-                            local vice_prices_with_mult = {}
-                            for _, vice_price in ipairs(vice_prices) do
-                                table.insert(vice_prices_with_mult, vice_price * 114)
-                            end
-                            
-                            table.sort(normal_prices_with_mult, function(a, b) return a < b end)
-                            table.sort(vice_prices_with_mult, function(a, b) return a < b end)
-                            
-                            local normal_top3 = {}
-                            for i = 1, math.min(3, #normal_prices_with_mult) do
-                                table.insert(normal_top3, normal_prices_with_mult[i])
-                            end
-                            
-                            local vice_top3 = {}
-                            for i = 1, math.min(3, #vice_prices_with_mult) do
-                                table.insert(vice_top3, vice_prices_with_mult[i])
-                            end
-                            
-                            local all_selected_prices = {}
-                            
-                            for _, price in ipairs(normal_top3) do
-                                table.insert(all_selected_prices, price)
-                            end
-                            
-                            for _, price in ipairs(vice_top3) do
-                                table.insert(all_selected_prices, price)
-                            end
-                            
-                            table.sort(all_selected_prices, function(a, b) return a < b end)
-                            
-                            local sum = 0
-                            for _, price in ipairs(all_selected_prices) do
-                                sum = sum + price
-                            end
-                            local average = sum / #all_selected_prices
-
-                            item[some_element][7][0] = tonumber(average)
-                            imguiJson()
-
-                            AlreadyUsedMarket = true
-                            baseTime = os.clock()
-                        end
-                    end
-                else
-                    print(status_code, res, err)
-                end
-            end)
-            :send()
-        elseif AlreadyUsedMarket then
-            currentTime = os.clock()
-            if currentTime - baseTime >= 300 then
-                
-                async_http_request:create('json', 'GET', "https://api.arz.market/api/getSelectedMarketplace/-1")
-                :setCallback(function (status_code, res, err)
-                    if status_code == 200 or status_code == 304 then
-
-                        market_data = decodeJson(res)
-
-                        if market_data and #market_data > 0 then
-
-                            local normal_prices = {}
-                            local vice_prices = {}
-                            local used_nicknames = {}
-                            
-                            for _, market_info in ipairs(market_data) do
-                                local seller_nickname = market_info.username
-                                
-                                if used_nicknames[seller_nickname] then
-                                    goto continue
-                                end
-
-                                local is_vice_city = seller_nickname:match("^%[%d+%]") ~= nil
-                                
-                                if market_info.items_sell and #market_info.items_sell > 1 then
-                                    count = count + 1
-                                    for j, market_item_id in ipairs(market_info.items_sell) do
-                                        local market_item_name = getItemNameById(market_item_id)
-
-                                        if market_item_name:lower():find(some_item:lower()) then
-                                            local total_count_item = market_info.count_sell and market_info.count_sell[j]
-                                            if total_count_item >= some_minimal_count then
-                                                local price = market_info.price_sell and market_info.price_sell[j]
-                                                print(price)
-
-                                                if price then
-                                                    used_nicknames[seller_nickname] = true
-                                                
-                                                    if is_vice_city then
-                                                        table.insert(vice_prices, price)
-                                                    else
-                                                        table.insert(normal_prices, price)
-                                                    end
-                                                    
-                                                    break
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                                ::continue::
-                            end
-                            
-                            local total_collected = #normal_prices + (#vice_prices)
-                            
-                            if total_collected >= 3 then
-
-                                local normal_prices_with_mult = {}
-                                for _, price in ipairs(normal_prices) do
-                                    table.insert(normal_prices_with_mult, price)
-                                end
-                                
-                                local vice_prices_with_mult = {}
-                                for _, vice_price in ipairs(vice_prices) do
-                                    table.insert(vice_prices_with_mult, vice_price * 114)
-                                end
-                                
-                                table.sort(normal_prices_with_mult, function(a, b) return a < b end)
-                                table.sort(vice_prices_with_mult, function(a, b) return a < b end)
-                                
-                                local normal_top3 = {}
-                                for i = 1, math.min(3, #normal_prices_with_mult) do
-                                    table.insert(normal_top3, normal_prices_with_mult[i])
-                                end
-                                
-                                local vice_top3 = {}
-                                for i = 1, math.min(3, #vice_prices_with_mult) do
-                                    table.insert(vice_top3, vice_prices_with_mult[i])
-                                end
-                                
-                                local all_selected_prices = {}
-                                
-                                for _, price in ipairs(normal_top3) do
-                                    table.insert(all_selected_prices, price)
-                                end
-                                
-                                for _, price in ipairs(vice_top3) do
-                                    table.insert(all_selected_prices, price)
-                                end
-                                
-                                table.sort(all_selected_prices, function(a, b) return a < b end)
-                                
-                                local sum = 0
-                                for _, price in ipairs(all_selected_prices) do
-                                    sum = sum + price
-                                end
-                                local average = sum / #all_selected_prices
-
-                                item[some_element][7][0] = tonumber(average)
-                                imguiJson()
-
-                                AlreadyUsedMarket = true
-                                baseTime = os.clock()
-                                
-                            end
-                        end
-                    else
-                        print(status_code, res, err)
-                    end
-                end)
-                :send()
-            elseif currentTime - baseTime <= 300 then
                 if market_data and #market_data > 0 then
 
                     local normal_prices = {}
@@ -1573,25 +1430,25 @@ function ParseItems(some_item, some_minimal_count, some_element)
                     for _, market_info in ipairs(market_data) do
                         local seller_nickname = market_info.username
                         
+                        -- Пропускаем, если никнейм уже использован
                         if used_nicknames[seller_nickname] then
                             goto continue
                         end
 
+                        -- Определяем тип сервера по никнейму
                         local is_vice_city = seller_nickname:match("^%[%d+%]") ~= nil
                         
                         if market_info.items_sell and #market_info.items_sell > 1 then
                             count = count + 1
                             for j, market_item_id in ipairs(market_info.items_sell) do
                                 local market_item_name = getItemNameById(market_item_id)
-                                if some_item:lower():find('Супер') then
-                                    print(some_item:lower())
-                                end
 
                                 if market_item_name:lower():find(some_item:lower()) then
                                     local total_count_item = market_info.count_sell and market_info.count_sell[j]
+                                    --print(j .. ' | ' .. total_count_item)
                                     if total_count_item >= some_minimal_count then
                                         local price = market_info.price_sell and market_info.price_sell[j]
-                                        print(price)
+                                        --print(price)
 
                                         if price then
                                             used_nicknames[seller_nickname] = true
@@ -1602,7 +1459,7 @@ function ParseItems(some_item, some_minimal_count, some_element)
                                                 table.insert(normal_prices, price)
                                             end
                                             
-                                            break
+                                            break  -- Выходим после первого найденного предмета у продавца
                                         end
                                     end
                                 end
@@ -1613,7 +1470,7 @@ function ParseItems(some_item, some_minimal_count, some_element)
                     
                     local total_collected = #normal_prices + (#vice_prices)
                     
-                    if total_collected >= 3 then
+                    if total_collected >= 3 and #normal_prices >= 3 and #vice_prices >= 3 then
 
                         local normal_prices_with_mult = {}
                         for _, price in ipairs(normal_prices) do
@@ -1656,29 +1513,304 @@ function ParseItems(some_item, some_minimal_count, some_element)
                         end
                         local average = sum / #all_selected_prices
 
+                        if not isUsedAutoParse then
+                            FarmNormMSG('Обработали элемент: ' .. (some_item or 'UNKOWN') .. ' | Цена: ' .. number_separator(tonumber(average)))
+                        end
+
+                        if callback then callback(true) end
+
                         item[some_element][7][0] = tonumber(average)
+
+                        AlreadyUsedMarket = true
+                        baseTime = os.clock()
+                    else
+                        print('[ParseItems] Общее количество продавцов с предметом " ' .. some_item ..'" меньше 3')
+                        if callback then callback(false) end
                     end
+                    print('[ParseItems] Мы не смогли получить данные из функции ParseItems!')
+                    if callback then callback(false) end
                 end
+            else
+                print(status_code, res, err)
+                if callback then callback(false) end
             end
+            imguiJson()
+        end)
+        :send()
+    elseif AlreadyUsedMarket then
+        currentTime = os.clock()
+        if currentTime - baseTime >= 300 then
+            
+            async_http_request:create('json', 'GET', "https://api.arz.market/api/getSelectedMarketplace/-1")
+            :setCallback(function (status_code, res, err)
+                if status_code == 200 or status_code == 304 then
+
+                    market_data = decodeJson(res)
+
+                    if market_data and #market_data > 0 then
+
+                        local normal_prices = {}
+                        local vice_prices = {}
+                        local used_nicknames = {}
+                        
+                        for _, market_info in ipairs(market_data) do
+                            local seller_nickname = market_info.username
+                            
+                            if used_nicknames[seller_nickname] then
+                                goto continue
+                            end
+
+                            local is_vice_city = seller_nickname:match("^%[%d+%]") ~= nil
+                            
+                            if market_info.items_sell and #market_info.items_sell > 1 then
+                                count = count + 1
+                                for j, market_item_id in ipairs(market_info.items_sell) do
+                                    local market_item_name = getItemNameById(market_item_id)
+
+                                    if market_item_name:lower():find(some_item:lower()) then
+                                        local total_count_item = market_info.count_sell and market_info.count_sell[j]
+                                        if total_count_item >= some_minimal_count then
+                                            local price = market_info.price_sell and market_info.price_sell[j]
+                                            --print(price)
+
+                                            if price then
+                                                used_nicknames[seller_nickname] = true
+                                            
+                                                if is_vice_city then
+                                                    table.insert(vice_prices, price)
+                                                else
+                                                    table.insert(normal_prices, price)
+                                                end
+                                                
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            ::continue::
+                        end
+                        
+                        local total_collected = #normal_prices + (#vice_prices)
+                        
+                        if total_collected >= 3 and #normal_prices >= 3 and #vice_prices >= 3 then
+
+                            local normal_prices_with_mult = {}
+                            for _, price in ipairs(normal_prices) do
+                                table.insert(normal_prices_with_mult, price)
+                            end
+                            
+                            local vice_prices_with_mult = {}
+                            for _, vice_price in ipairs(vice_prices) do
+                                table.insert(vice_prices_with_mult, vice_price * 114)
+                            end
+                            
+                            table.sort(normal_prices_with_mult, function(a, b) return a < b end)
+                            table.sort(vice_prices_with_mult, function(a, b) return a < b end)
+                            
+                            local normal_top3 = {}
+                            for i = 1, math.min(3, #normal_prices_with_mult) do
+                                table.insert(normal_top3, normal_prices_with_mult[i])
+                            end
+                            
+                            local vice_top3 = {}
+                            for i = 1, math.min(3, #vice_prices_with_mult) do
+                                table.insert(vice_top3, vice_prices_with_mult[i])
+                            end
+                            
+                            local all_selected_prices = {}
+                            
+                            for _, price in ipairs(normal_top3) do
+                                table.insert(all_selected_prices, price)
+                            end
+                            
+                            for _, price in ipairs(vice_top3) do
+                                table.insert(all_selected_prices, price)
+                            end
+                            
+                            table.sort(all_selected_prices, function(a, b) return a < b end)
+                            
+                            local sum = 0
+                            for _, price in ipairs(all_selected_prices) do
+                                sum = sum + price
+                            end
+                            local average = sum / #all_selected_prices
+
+                            if not isUsedAutoParse then
+                                FarmNormMSG('Обработали элемент: ' .. some_item .. ' | Цена: ' .. number_separator(tonumber(average)))
+                            end
+
+                            if callback then callback(true) end
+
+                            item[some_element][7][0] = tonumber(average)
+
+                            AlreadyUsedMarket = true
+                            baseTime = os.clock()
+                        else
+                            print('[ParseItems] Общее количество продавцов с предметом " ' .. some_item ..'" меньше 3')
+                            if callback then callback(false) end
+                        end
+                    else
+                        print('[ParseItems] Мы не смогли получить данные из функции ParseItems!')
+                        if callback then callback(false) end
+                    end
+                else
+                    if callback then callback(false) end
+                    print(status_code, res, err)
+                end
+                imguiJson()
+            end)
+            :send()
+        elseif currentTime - baseTime <= 300 then
+            if market_data and #market_data > 0 then
+
+                local normal_prices = {}
+                local vice_prices = {}
+                local used_nicknames = {}
+                
+                for _, market_info in ipairs(market_data) do
+                    local seller_nickname = market_info.username
+                    
+                    if used_nicknames[seller_nickname] then
+                        goto continue
+                    end
+
+                    local is_vice_city = seller_nickname:match("^%[%d+%]") ~= nil
+                    
+                    if market_info.items_sell and #market_info.items_sell > 1 then
+                        count = count + 1
+                        for j, market_item_id in ipairs(market_info.items_sell) do
+                            local market_item_name = getItemNameById(market_item_id)
+
+                            if (market_item_name:lower()):find(some_item:lower()) then
+                                local total_count_item = market_info.count_sell and market_info.count_sell[j]
+                                if total_count_item >= some_minimal_count then
+                                    local price = market_info.price_sell and market_info.price_sell[j]
+                                    --print(price)
+
+                                    if price then
+                                        used_nicknames[seller_nickname] = true
+                                    
+                                        if is_vice_city then
+                                            table.insert(vice_prices, price)
+                                        else
+                                            table.insert(normal_prices, price)
+                                        end
+                                        
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    ::continue::
+                end
+                
+                local total_collected = #normal_prices + (#vice_prices)
+                
+                if total_collected >= 3 and #normal_prices >= 3 and #vice_prices >= 3 then
+
+                    local normal_prices_with_mult = {}
+                    for _, price in ipairs(normal_prices) do
+                        table.insert(normal_prices_with_mult, price)
+                    end
+                    
+                    local vice_prices_with_mult = {}
+                    for _, vice_price in ipairs(vice_prices) do
+                        table.insert(vice_prices_with_mult, vice_price * 114)
+                    end
+                    
+                    table.sort(normal_prices_with_mult, function(a, b) return a < b end)
+                    table.sort(vice_prices_with_mult, function(a, b) return a < b end)
+                    
+                    local normal_top3 = {}
+                    for i = 1, math.min(3, #normal_prices_with_mult) do
+                        table.insert(normal_top3, normal_prices_with_mult[i])
+                    end
+                    
+                    local vice_top3 = {}
+                    for i = 1, math.min(3, #vice_prices_with_mult) do
+                        table.insert(vice_top3, vice_prices_with_mult[i])
+                    end
+                    
+                    local all_selected_prices = {}
+                    
+                    for _, price in ipairs(normal_top3) do
+                        table.insert(all_selected_prices, price)
+                    end
+                    
+                    for _, price in ipairs(vice_top3) do
+                        table.insert(all_selected_prices, price)
+                    end
+                    
+                    table.sort(all_selected_prices, function(a, b) return a < b end)
+                    
+                    local sum = 0
+                    for _, price in ipairs(all_selected_prices) do
+                        sum = sum + price
+                    end
+                    local average = sum / #all_selected_prices
+
+                    if not isUsedAutoParse then
+                        FarmNormMSG('Обработали элемент: ' .. some_item .. ' | Цена: ' .. (tonumber(average) or 0))
+                    end
+
+                    if callback then callback(true) end
+
+                    item[some_element][7][0] = tonumber(average)
+                else
+                    print('[ParseItems] Общее количество продавцов с предметом " ' .. some_item ..'" меньше 3')
+                    if callback then callback(false) end
+                end
+            else
+                print('[ParseItems] Мы не смогли получить данные из функции ParseItems!')
+                if callback then callback(false) end
+            end
+            imguiJson()
         end
-    elseif imguiJson.combo_test[0] >= 4 then
-        FarmErrorMSG('На данный момент парсинг с премиум-таблицы не сделан! Будет готово в следующих обновлениях')
     end
 end
 
-function formatPrice(price)
-    if not price then return "0" end
-    
-    -- Округляем до целого числа
-    price = math.floor(price + 0.5)
-    
-    local formatted = tostring(price)
-    local k = 3
-    while k < #formatted do
-        formatted = formatted:sub(1, -k-1) .. "" .. formatted:sub(-k)
-        k = k + 4
+function parseItemsQueue()
+    if #queue == 0 then
+        print('Очередь пуста, обработка звершена')
+        if isUsedAutoParse == true then isUsedAutoParse = false end
+        return
     end
-    return number_separator(formatted)
+
+    lua_thread.create(function()
+        while #queue > 0 do
+            local current = table.remove(queue, 1)
+
+            if count_current and count_current > 0 then
+                print('Ожидаем 500 мс перед предметом')
+                wait(600)
+            end
+
+            count_current = (count_current or 0) + 1
+
+            local done = false
+            local result = false
+
+            ParseItems(current.some_item, current.some_minimal_count, current.some_element, function(success)
+                result = success
+                done = true
+            end)
+
+            while not done do
+                wait(150)
+            end
+
+            if result then
+                print('Успешно обработали элемент: ' .. current.some_item)
+            else
+                print('Не удалось обработать элемент: ' .. current.some_item)
+            end
+        end
+
+        if isUsedAutoParse == true then isUsedAutoParse = false end
+        print('Обработка всей очереди завершена!')
+    end)
 end
 
 function getItemNameById(itemId)
@@ -1745,15 +1877,15 @@ addEventHandler("onReceivePacket", function(id, bs)
                                         add_loot(item[i][3], tonumber(count_item or 0))
                                     end
                                 end
+                                lua_thread.create(function()
+                                    wait(500)
+                                    imguiJson.flag_nft = false
+                                    imguiJson()
+                                end)
                             end
                         end
                     end
-                    lua_thread.create(function()
-                        wait(500)
-                        imguiJson.flag_nft = false
-                    end)
                 end
-                imguiJsonTimer()
             end
 
             if eventCall == 'event.arizonahud.serverInfo' and dataCall:find([["multiplier":%d+]]) then
@@ -1764,7 +1896,6 @@ addEventHandler("onReceivePacket", function(id, bs)
                     else
                         imguiJson.current_payday_multiplier = 2
                     end
-                    imguiJson()
                 end
             end
         end
@@ -1838,7 +1969,7 @@ end
 
 function imgui.Question(text)
     imgui.SameLine()
-    imgui.TextDisabled("(?)")
+    imgui.TextDisabled(u8"(Для чего это?)")
     if imgui.IsItemHovered() then
         imgui.BeginTooltip()
         imgui.TextUnformatted(u8(text))
@@ -2038,11 +2169,10 @@ function onScriptTerminate(scr,qgame) -- gg
         end
 
         if FarmLog.months[currentMonth] == nil then
-            FarmLog.months[currentMonth] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
+           FarmLog.months[currentMonth] = {current_editing = '', sa = 0, az = 0, vc = 0, nft_sa_money = 0, nft_restavracia_acs = 0, nft_sert_phoenix = 0, nft_sert_carting = 0, nft_sert_cheetah = 0, nft_sert_elegy = 0, az_second = 0, oskolok_zatochka_nft = 0, gold = 0, silver = 0, silver_r_second = 0, benzopila_na_spiny = 0, gold_r_second = 0, micro_tec = 0, space_heart = 0, altushka = 0, finka_lv_territory = 0, quest_business_sa = 0, quest_business_az = 0, finka_business = 0, primogem = 0, second_hand_box = 0, minecraft_box = 0, gentleman_box = 0, marvel_box = 0, super_moto_box = 0, super_auto_box = 0, rare_blue_box = 0, rare_red_box = 0, rare_yellow_box = 0, nostalgic_box = 0, fortnite_box = 0, organization_box = 0, oligarch_box = 0, random_box = 0, mortal_combat_box = 0, custom_accessories_box = 0, crafter_box = 0, treasure_hunter_box = 0, fisher_box = 0, products_carrier_box = 0, total_boxes = 0, total_roulette = 0, total_business = 0, obrez = 0, kosa_marci = 0, bitcoin = 0, midas3slot = 0,  grazdan_taloni = 0, concept_car_luxury_box = 0, larec_premiya = 0, super_car_box = 0, bronze_r = 0, silver_r = 0, gold_r = 0, platinum_r = 0, moneta_mirage = 0, leshiy = 0, podarki_acs_ohr = 0, az_acs_ohr = 0, ribmoneta_acs_ohr = 0, vc_acs_ohr = 0, payday = 0, zarplata = 0, deposit = 0, mirage = 0, market = 0, rassrochka = 0, premiumvip = 0, premiumvipy = 0, addvip = 0}
         end
 
         for i = 1, #item do
-
             if FarmLog.days[currentDate][item[i][3]] == nil then
                 FarmLog.days[currentDate][item[i][3]] = 0 
             end
@@ -2055,6 +2185,8 @@ function onScriptTerminate(scr,qgame) -- gg
                 FarmLog.months[currentMonth][item[i][3]] = 0
             end
         end
+
+        imguiJson.flag_nft = false
 
         imguiJson()
         FarmLog()
